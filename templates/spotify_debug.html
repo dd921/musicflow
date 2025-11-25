@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spotify Debug - MusicFlow</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        header {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .nav-links {
+            margin-top: 15px;
+        }
+        
+        .nav-links a {
+            color: #667eea;
+            text-decoration: none;
+            margin-right: 20px;
+        }
+        
+        .nav-links a:hover {
+            text-decoration: underline;
+        }
+        
+        .info-box {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .info-box h2 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+        
+        .tracks-list {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .track-item {
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr;
+            gap: 15px;
+            align-items: center;
+        }
+        
+        .track-item:last-child {
+            border-bottom: none;
+        }
+        
+        .track-info {
+            flex: 1;
+        }
+        
+        .track-name {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        
+        .track-artist {
+            color: #666;
+            font-size: 0.9em;
+        }
+        
+        .track-time {
+            color: #999;
+            font-size: 0.9em;
+            text-align: right;
+        }
+        
+        .track-duration {
+            color: #999;
+            font-size: 0.9em;
+            text-align: right;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-box {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .stat-label {
+            color: #666;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔍 Spotify Debug - Recently Played Tracks</h1>
+            <p style="color: #666;">View all available Spotify tracks from your listening history</p>
+            <div class="nav-links">
+                <a href="{{ url_for('index') }}">← Back to Home</a>
+                <a href="{{ url_for('activities') }}">Activities</a>
+            </div>
+        </header>
+        
+        <div class="stats">
+            <div class="stat-box">
+                <div class="stat-value">{{ tracks|length }}</div>
+                <div class="stat-label">Total Tracks Available</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value">{{ (tracks[0].played_at_timestamp if tracks else None)|default('N/A') }}</div>
+                <div class="stat-label">Most Recent Track</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value">{{ (tracks[-1].played_at_timestamp if tracks else None)|default('N/A') }}</div>
+                <div class="stat-label">Oldest Track</div>
+            </div>
+        </div>
+        
+        <div class="info-box">
+            <h2>📊 About Spotify Track History</h2>
+            <ul style="margin-left: 20px; margin-top: 10px; color: #666;">
+                <li>Spotify API provides the last ~50 recently played tracks</li>
+                <li>Tracks are shown in reverse chronological order (newest first)</li>
+                <li>Each track shows when it started playing and its duration</li>
+                <li>To match with activities, the activity time must overlap with track playback time</li>
+            </ul>
+        </div>
+        
+        <div class="tracks-list">
+            <h2>All Recently Played Tracks ({{ tracks|length }})</h2>
+            {% if tracks %}
+            <div style="margin-top: 20px;">
+                {% for track in tracks %}
+                <div class="track-item">
+                    <div class="track-info">
+                        <div class="track-name">{{ track.track_name }}</div>
+                        <div class="track-artist">{{ track.artists|join(', ') }}</div>
+                        <div style="font-size: 0.8em; color: #999; margin-top: 5px;">
+                            Album: {{ track.album }}
+                        </div>
+                    </div>
+                    <div class="track-time">
+                        <div style="font-weight: bold; color: #333;">Played At:</div>
+                        <div>{{ track.played_at }}</div>
+                        <div style="font-size: 0.8em; color: #999; margin-top: 5px;">
+                            {{ track.played_at_timestamp.strftime('%Y-%m-%d %H:%M:%S') }}
+                        </div>
+                    </div>
+                    <div class="track-duration">
+                        <div style="font-weight: bold; color: #333;">Duration:</div>
+                        <div>{{ "%.1f"|format(track.duration_ms / 1000) }}s</div>
+                        <div style="font-size: 0.8em; color: #999; margin-top: 5px;">
+                            ({{ "%.1f"|format(track.duration_ms / 60000) }} min)
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p style="color: #999; margin-top: 20px;">No tracks found. Make sure you've been playing music on Spotify recently.</p>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>
+

@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MusicFlow - Strava & Spotify Integration</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+        
+        .auth-section {
+            margin: 30px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+        
+        .auth-status {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin: 15px 0;
+        }
+        
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+        
+        .status-indicator.connected {
+            background: #2ecc71;
+        }
+        
+        .status-indicator.disconnected {
+            background: #e74c3c;
+        }
+        
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            text-decoration: none;
+            display: inline-block;
+            transition: background 0.3s;
+        }
+        
+        .btn:hover {
+            background: #5568d3;
+        }
+        
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .btn-secondary {
+            background: #1db954;
+        }
+        
+        .btn-secondary:hover {
+            background: #1aa34a;
+        }
+        
+        .actions {
+            margin-top: 30px;
+            text-align: center;
+        }
+        
+        .info-box {
+            background: #e8f4f8;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        
+        .info-box h3 {
+            color: #2980b9;
+            margin-bottom: 10px;
+        }
+        
+        .info-box ul {
+            margin-left: 20px;
+            color: #555;
+        }
+        
+        .info-box li {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎵 MusicFlow</h1>
+        <p class="subtitle">Visualize your workouts with the music that powered them</p>
+        
+        <div class="auth-section">
+            <h2>Authentication Status</h2>
+            
+            <div class="auth-status">
+                <div style="display: flex; align-items: center;">
+                    <span class="status-indicator {{ 'connected' if strava_auth else 'disconnected' }}"></span>
+                    <span><strong>Strava</strong></span>
+                </div>
+                {% if strava_auth %}
+                    <span style="color: #2ecc71;">✓ Connected</span>
+                {% else %}
+                    <a href="{{ url_for('strava_auth') }}" class="btn">Connect Strava</a>
+                {% endif %}
+            </div>
+            
+            <div class="auth-status">
+                <div style="display: flex; align-items: center;">
+                    <span class="status-indicator {{ 'connected' if spotify_auth else 'disconnected' }}"></span>
+                    <span><strong>Spotify</strong></span>
+                </div>
+                {% if spotify_auth %}
+                    <span style="color: #2ecc71;">✓ Connected</span>
+                {% else %}
+                    <a href="{{ url_for('spotify_auth') }}" class="btn btn-secondary">Connect Spotify</a>
+                {% endif %}
+            </div>
+        </div>
+        
+        {% if strava_auth and spotify_auth %}
+        <div class="actions">
+            <a href="{{ url_for('activities') }}" class="btn" style="font-size: 18px; padding: 15px 30px;">
+                View My Activities →
+            </a>
+            <a href="{{ url_for('spotify_debug') }}" class="btn" style="font-size: 16px; padding: 12px 24px; margin-top: 10px; background: #1db954;">
+                🔍 View Spotify Tracks
+            </a>
+            <a href="{{ url_for('spotify_storage') }}" class="btn" style="font-size: 16px; padding: 12px 24px; margin-top: 10px; background: #9b59b6;">
+                💾 View Stored Tracks
+            </a>
+        </div>
+        {% endif %}
+        
+        <div class="info-box">
+            <h3>📊 About MusicFlow</h3>
+            <ul>
+                <li>Overlay Spotify tracks on your Strava workout metrics</li>
+                <li>Visualize pace, heart rate, cadence, and more</li>
+                <li>See which songs were playing during different parts of your workout</li>
+                <li>Interactive charts powered by Plotly</li>
+            </ul>
+        </div>
+        
+        <div class="info-box">
+            <h3>⚠️ API Limitations</h3>
+            <ul>
+                <li><strong>Strava:</strong> Detailed activity data available for last ~30 days</li>
+                <li><strong>Spotify:</strong> Recently played tracks limited to last ~50 songs</li>
+                <li>For best results, analyze activities from the past few days</li>
+            </ul>
+        </div>
+        
+        {% if strava_auth or spotify_auth %}
+        <div class="actions" style="margin-top: 20px;">
+            <a href="{{ url_for('logout') }}" style="color: #e74c3c; text-decoration: none;">Logout</a>
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>
+

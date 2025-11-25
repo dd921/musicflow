@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ activity.name }} - MusicFlow</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        header {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .activity-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .info-item {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .info-label {
+            font-size: 0.8em;
+            color: #999;
+            text-transform: uppercase;
+        }
+        
+        .info-value {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .nav-links {
+            margin-top: 15px;
+        }
+        
+        .nav-links a {
+            color: #667eea;
+            text-decoration: none;
+            margin-right: 20px;
+        }
+        
+        .nav-links a:hover {
+            text-decoration: underline;
+        }
+        
+        .chart-container {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .chart-title {
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 15px;
+        }
+        
+        .tracks-list {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .tracks-list h2 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+        
+        .track-item {
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .track-item:last-child {
+            border-bottom: none;
+        }
+        
+        .track-info {
+            flex: 1;
+        }
+        
+        .track-name {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        
+        .track-artist {
+            color: #666;
+            font-size: 0.9em;
+        }
+        
+        .track-duration {
+            color: #999;
+            font-size: 0.9em;
+        }
+        
+        .warning-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        
+        .warning-box h3 {
+            color: #856404;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>{{ activity.name or 'Untitled Activity' }}</h1>
+            <p style="color: #666;">{{ activity.start_date[:10] }} {{ activity.start_date[11:16] }}</p>
+            
+            <div class="activity-info">
+                <div class="info-item">
+                    <span class="info-label">Type</span>
+                    <span class="info-value">{{ activity.type }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Distance</span>
+                    <span class="info-value">{{ "%.2f"|format(activity.distance / 1000) }} km</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Duration</span>
+                    <span class="info-value">{{ "%.0f"|format(activity.moving_time / 60) }} min</span>
+                </div>
+                {% if activity.average_heartrate %}
+                <div class="info-item">
+                    <span class="info-label">Avg HR</span>
+                    <span class="info-value">{{ activity.average_heartrate }} bpm</span>
+                </div>
+                {% endif %}
+                {% if activity.average_speed %}
+                <div class="info-item">
+                    <span class="info-label">Avg Pace</span>
+                    <span class="info-value">{{ "%.2f"|format(1000 / (activity.average_speed * 60)) }} min/km</span>
+                </div>
+                {% endif %}
+                {% if activity.total_elevation_gain %}
+                <div class="info-item">
+                    <span class="info-label">Elevation</span>
+                    <span class="info-value">{{ "%.0f"|format(activity.total_elevation_gain) }} m</span>
+                </div>
+                {% endif %}
+            </div>
+            
+            <div class="nav-links">
+                <a href="{{ url_for('activities') }}">← Back to Activities</a>
+                <a href="{{ url_for('index') }}">Home</a>
+                <a href="{{ url_for('activity_debug', activity_id=activity.id) }}" style="color: #f39c12;">🔍 Debug Track Matching</a>
+            </div>
+            
+            <div class="controls" style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                <div style="display: flex; gap: 20px; align-items: center; flex-wrap: wrap;">
+                    <div>
+                        <label style="font-weight: bold; margin-right: 10px;">Units:</label>
+                        <label style="cursor: pointer; margin-right: 15px;">
+                            <input type="radio" name="units" value="metric" {{ 'checked' if units == 'metric' else '' }} 
+                                   onchange="updateChart()" style="margin-right: 5px;">
+                            Metric (km, m)
+                        </label>
+                        <label style="cursor: pointer;">
+                            <input type="radio" name="units" value="imperial" {{ 'checked' if units == 'imperial' else '' }} 
+                                   onchange="updateChart()" style="margin-right: 5px;">
+                            Imperial (miles, ft)
+                        </label>
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 10px;">Timezone:</label>
+                        <select id="timezone-select" onchange="updateChart()" style="padding: 5px 10px; border-radius: 5px; border: 1px solid #ddd;">
+                            {% for tz_code, tz_name in available_timezones.items() %}
+                            <option value="{{ tz_code }}" {{ 'selected' if timezone == tz_code else '' }}>
+                                {{ tz_name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </header>
+        
+        {% if num_tracks == 0 %}
+        <div class="warning-box">
+            <h3>⚠️ No Spotify Tracks Found</h3>
+            <p>No Spotify tracks were found for this activity period. This could be because:</p>
+            <ul style="margin-left: 20px; margin-top: 10px;">
+                <li>The activity occurred outside Spotify's available history window (~50 tracks)</li>
+                <li>No music was playing during this activity</li>
+                <li>The activity is too old (Spotify only tracks recently played songs)</li>
+            </ul>
+            <p style="margin-top: 10px;">
+                <a href="{{ url_for('activity_debug', activity_id=activity.id) }}" style="color: #f39c12; font-weight: bold;">
+                    🔍 Click here to debug and see all available Spotify tracks
+                </a>
+            </p>
+            <p style="margin-top: 10px;">The workout metrics are still displayed below, but without track overlays.</p>
+        </div>
+        {% endif %}
+        
+        <div class="chart-container">
+            <div class="chart-title">Workout Metrics with Spotify Tracks</div>
+            <div id="workout-chart"></div>
+        </div>
+        
+        <div class="chart-container">
+            <div class="chart-title">Track Timeline</div>
+            <div id="timeline-chart"></div>
+        </div>
+        
+        {% if tracks %}
+        <div class="tracks-list">
+            <h2>Tracks Played During Activity ({{ num_tracks }})</h2>
+            {% for track in tracks %}
+            <div class="track-item">
+                <div class="track-info">
+                    <div class="track-name">{{ track.track_name }}</div>
+                    <div class="track-artist">{{ track.artists|join(', ') }}</div>
+                </div>
+                <div class="track-duration">{{ "%.1f"|format(track.duration_ms / 1000) }}s</div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+    
+    <script>
+        const activityId = {{ activity.id }};
+        var workoutChartData = {{ workout_chart|safe }};
+        var timelineChartData = {{ timeline_chart|safe }};
+        
+        // Render charts
+        Plotly.newPlot('workout-chart', workoutChartData.data, workoutChartData.layout, {responsive: true});
+        Plotly.newPlot('timeline-chart', timelineChartData.data, timelineChartData.layout, {responsive: true});
+        
+        function updateChart() {
+            const units = document.querySelector('input[name="units"]:checked').value;
+            const timezone = document.getElementById('timezone-select').value;
+            
+            // Show loading state
+            const chartDiv = document.getElementById('workout-chart');
+            chartDiv.innerHTML = '<div style="text-align: center; padding: 50px;">Loading...</div>';
+            
+            // Fetch new chart data
+            fetch(`/api/activity/${activityId}/chart?units=${units}&timezone=${timezone}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        chartDiv.innerHTML = `<div style="color: red; padding: 20px;">Error: ${data.error}</div>`;
+                        return;
+                    }
+                    
+                    const newChartData = JSON.parse(data.chart);
+                    Plotly.newPlot('workout-chart', newChartData.data, newChartData.layout, {responsive: true});
+                })
+                .catch(error => {
+                    chartDiv.innerHTML = `<div style="color: red; padding: 20px;">Error: ${error.message}</div>`;
+                });
+        }
+    </script>
+</body>
+</html>
+
