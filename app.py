@@ -222,10 +222,36 @@ def activities():
             reverse=True
         )
         
+        # Get track counts for each activity if Spotify is connected
+        activity_track_counts = {}
+        if 'spotify_token' in session:
+            try:
+                global spotify_client, data_prep
+                if not spotify_client:
+                    spotify_client = SpotifyClient(
+                        access_token=session['spotify_token'],
+                        refresh_token=session.get('spotify_refresh_token')
+                    )
+                if not data_prep:
+                    data_prep = DataPreparator(strava_client, spotify_client, track_storage)
+                
+                # Get track counts for each activity (with error handling)
+                for activity in activities_list:
+                    try:
+                        tracks = data_prep.get_spotify_tracks_for_activity(activity, buffer_minutes=5)
+                        activity_track_counts[activity['id']] = len(tracks)
+                    except Exception as e:
+                        # If we can't get tracks for an activity, set count to 0
+                        activity_track_counts[activity['id']] = 0
+            except Exception as e:
+                # If data_prep fails, all activities get 0 tracks
+                pass
+        
         from units import TimezoneConverter
         
         return render_template('activities.html', 
                              activities=activities_list,
+                             activity_track_counts=activity_track_counts,
                              units=units,
                              timezone=timezone,
                              available_timezones=TimezoneConverter.get_available_timezones())

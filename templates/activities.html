@@ -244,6 +244,12 @@
                     <span class="stat-value pace">{{ pace_km|format_pace(units) }}</span>
                 </div>
                 {% endif %}
+                {% if activity_track_counts.get(activity.id, 0) > 0 %}
+                <div class="stat">
+                    <span class="stat-label">Tracks</span>
+                    <span class="stat-value secondary">{{ activity_track_counts.get(activity.id, 0) }}</span>
+                </div>
+                {% endif %}
             </div>
         </div>
         {% endfor %}

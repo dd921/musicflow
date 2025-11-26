@@ -206,9 +206,10 @@ class WorkoutPlotter:
             )
             fig.update_yaxes(title_text=f"Altitude ({altitude_unit})", row=row, col=1)
         
-        # Add track change markers
+        # Add track change markers and colored shading
         if has_tracks:
             self._add_track_markers(fig, df, x_data, num_subplots)
+            self._add_track_shading(fig, df, x_data, tracks, num_subplots)
         
         # Update layout
         activity_name = activity.get('name', 'Workout')
@@ -317,6 +318,85 @@ class WorkoutPlotter:
                 annotation_position="top",
                 row="all"
             )
+    
+    def _add_track_shading(self, fig: go.Figure, df: pd.DataFrame, 
+                          x_data: pd.Series, tracks: List[Dict], num_subplots: int):
+        """Add colored shading to show which track was playing at each time."""
+        import pytz
+        
+        # Get unique track periods
+        track_periods = []
+        current_track_id = None
+        track_start_idx = None
+        
+        for idx, row in df.iterrows():
+            track_id = row['current_track'] if pd.notna(row['current_track']) else None
+            
+            if track_id != current_track_id:
+                # Track changed
+                if current_track_id is not None and track_start_idx is not None:
+                    # End previous track period
+                    track_periods.append({
+                        'track_id': current_track_id,
+                        'start_idx': track_start_idx,
+                        'end_idx': idx - 1,
+                        'start_x': x_data.iloc[track_start_idx],
+                        'end_x': x_data.iloc[idx - 1] if idx > 0 else x_data.iloc[track_start_idx]
+                    })
+                
+                # Start new track period
+                if track_id is not None:
+                    track_start_idx = idx
+                    current_track_id = track_id
+                else:
+                    current_track_id = None
+                    track_start_idx = None
+        
+        # Handle last track period
+        if current_track_id is not None and track_start_idx is not None:
+            track_periods.append({
+                'track_id': current_track_id,
+                'start_idx': track_start_idx,
+                'end_idx': len(df) - 1,
+                'start_x': x_data.iloc[track_start_idx],
+                'end_x': x_data.iloc[-1]
+            })
+        
+        # Color palette for tracks
+        colors = ['rgba(255, 107, 53, 0.15)', 'rgba(29, 185, 84, 0.15)', 
+                  'rgba(255, 51, 102, 0.15)', 'rgba(102, 126, 234, 0.15)',
+                  'rgba(243, 156, 18, 0.15)', 'rgba(46, 204, 113, 0.15)',
+                  'rgba(231, 76, 60, 0.15)', 'rgba(155, 89, 182, 0.15)']
+        
+        # Add shaded rectangles for each track period
+        track_color_map = {}
+        color_index = 0
+        
+        for period in track_periods:
+            track_id = period['track_id']
+            if track_id not in track_color_map:
+                track_color_map[track_id] = colors[color_index % len(colors)]
+                color_index += 1
+            
+            color = track_color_map[track_id]
+            
+            # Add shading to all subplots
+            for row in range(1, num_subplots + 1):
+                # Get y-axis range for this subplot
+                yaxis_key = f"yaxis{row if row > 1 else ''}"
+                
+                fig.add_shape(
+                    type="rect",
+                    x0=period['start_x'],
+                    x1=period['end_x'],
+                    y0=-1e6,  # Very large negative number to cover full range
+                    y1=1e6,   # Very large positive number to cover full range
+                    fillcolor=color,
+                    line=dict(width=0),
+                    layer="below",
+                    opacity=0.2,
+                    row=row, col=1
+                )
     
     def create_track_timeline(self, df: pd.DataFrame, tracks: List[Dict], 
                              timezone: str = 'UTC') -> go.Figure:

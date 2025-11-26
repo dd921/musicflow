@@ -415,25 +415,35 @@
         modeBarButtonsToRemove: ['lasso2d', 'select2d']
     };
     
-    // Dark theme overrides for workout chart
-    function applyDarkTheme(chartData) {
+    // Apply theme based on current theme setting
+    function applyTheme(chartData) {
+        const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+        const isLight = currentTheme === 'light';
+        
+        // Set background colors based on theme
         chartData.layout.paper_bgcolor = 'rgba(0,0,0,0)';
-        chartData.layout.plot_bgcolor = 'rgba(26,26,26,0.5)';
-        chartData.layout.font = { color: '#A0A0A0', family: 'Outfit, sans-serif' };
+        chartData.layout.plot_bgcolor = isLight ? 'rgba(255,255,255,0.5)' : 'rgba(26,26,26,0.5)';
+        chartData.layout.font = { 
+            color: isLight ? '#666666' : '#A0A0A0', 
+            family: 'Outfit, sans-serif' 
+        };
         
         // Update all axes
         for (let key in chartData.layout) {
             if (key.startsWith('xaxis') || key.startsWith('yaxis')) {
                 chartData.layout[key] = chartData.layout[key] || {};
-                chartData.layout[key].gridcolor = 'rgba(128, 128, 128, 0.15)';
-                chartData.layout[key].zerolinecolor = 'rgba(128, 128, 128, 0.3)';
-                chartData.layout[key].linecolor = 'rgba(128, 128, 128, 0.3)';
-                chartData.layout[key].tickfont = { color: '#A0A0A0' };
+                chartData.layout[key].gridcolor = isLight ? 'rgba(0, 0, 0, 0.1)' : 'rgba(128, 128, 128, 0.15)';
+                chartData.layout[key].zerolinecolor = isLight ? 'rgba(0, 0, 0, 0.2)' : 'rgba(128, 128, 128, 0.3)';
+                chartData.layout[key].linecolor = isLight ? 'rgba(0, 0, 0, 0.2)' : 'rgba(128, 128, 128, 0.3)';
+                chartData.layout[key].tickfont = { color: isLight ? '#666666' : '#A0A0A0' };
                 if (chartData.layout[key].title) {
                     if (typeof chartData.layout[key].title === 'string') {
-                        chartData.layout[key].title = { text: chartData.layout[key].title, font: { color: '#FFFFFF' } };
+                        chartData.layout[key].title = { 
+                            text: chartData.layout[key].title, 
+                            font: { color: isLight ? '#1A1A1A' : '#FFFFFF' } 
+                        };
                     } else {
-                        chartData.layout[key].title.font = { color: '#FFFFFF' };
+                        chartData.layout[key].title.font = { color: isLight ? '#1A1A1A' : '#FFFFFF' };
                     }
                 }
             }
@@ -442,10 +452,13 @@
         // Update title color
         if (chartData.layout.title) {
             if (typeof chartData.layout.title === 'string') {
-                chartData.layout.title = { text: chartData.layout.title, font: { color: '#FFFFFF' } };
+                chartData.layout.title = { 
+                    text: chartData.layout.title, 
+                    font: { color: isLight ? '#1A1A1A' : '#FFFFFF' } 
+                };
             } else {
                 chartData.layout.title.font = chartData.layout.title.font || {};
-                chartData.layout.title.font.color = '#FFFFFF';
+                chartData.layout.title.font.color = isLight ? '#1A1A1A' : '#FFFFFF';
             }
         }
         
@@ -453,16 +466,29 @@
         if (chartData.layout.annotations) {
             chartData.layout.annotations.forEach(ann => {
                 ann.font = ann.font || {};
-                ann.font.color = '#FFFFFF';
+                ann.font.color = isLight ? '#1A1A1A' : '#FFFFFF';
             });
         }
         
         return chartData;
     }
     
-    // Apply dark theme to both charts
-    applyDarkTheme(workoutChartData);
-    applyDarkTheme(timelineChartData);
+    // Apply theme to both charts
+    applyTheme(workoutChartData);
+    applyTheme(timelineChartData);
+    
+    // Re-apply theme when theme changes
+    const themeObserver = new MutationObserver(() => {
+        applyTheme(workoutChartData);
+        applyTheme(timelineChartData);
+        Plotly.redraw('workout-chart');
+        Plotly.redraw('timeline-chart');
+    });
+    
+    themeObserver.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['data-theme']
+    });
     
     // Render charts
     Plotly.newPlot('workout-chart', workoutChartData.data, workoutChartData.layout, plotlyConfig);
