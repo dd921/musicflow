@@ -167,13 +167,90 @@
             <a href="{{ url_for('activities') }}" class="btn" style="font-size: 18px; padding: 15px 30px;">
                 View My Activities →
             </a>
-            <a href="{{ url_for('spotify_debug') }}" class="btn" style="font-size: 16px; padding: 12px 24px; margin-top: 10px; background: #1db954;">
-                🔍 View Spotify Tracks
-            </a>
-            <a href="{{ url_for('spotify_storage') }}" class="btn" style="font-size: 16px; padding: 12px 24px; margin-top: 10px; background: #9b59b6;">
-                💾 View Stored Tracks
-            </a>
+            
+            <!-- Refresh Buttons -->
+            <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                <button onclick="refreshStrava()" id="strava-refresh-btn" class="btn" style="background: #fc4c02; font-size: 14px; padding: 10px 20px;">
+                    🏃 Refresh Strava
+                </button>
+                <button onclick="refreshSpotify()" id="spotify-refresh-btn" class="btn" style="background: #1db954; font-size: 14px; padding: 10px 20px;">
+                    🎵 Sync Spotify
+                </button>
+            </div>
+            <div id="refresh-status" style="margin-top: 15px; padding: 12px 20px; border-radius: 8px; display: none; text-align: left;"></div>
+            
+            <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                <a href="{{ url_for('spotify_debug') }}" class="btn" style="font-size: 14px; padding: 10px 20px; background: #3498db;">
+                    🔍 View Spotify Tracks
+                </a>
+                <a href="{{ url_for('spotify_storage') }}" class="btn" style="font-size: 14px; padding: 10px 20px; background: #9b59b6;">
+                    💾 View Stored Tracks
+                </a>
+            </div>
         </div>
+        
+        <script>
+            function showStatus(message, isError = false) {
+                const statusDiv = document.getElementById('refresh-status');
+                statusDiv.style.display = 'block';
+                statusDiv.style.background = isError ? '#f8d7da' : '#d4edda';
+                statusDiv.style.color = isError ? '#721c24' : '#155724';
+                statusDiv.style.border = isError ? '1px solid #f5c6cb' : '1px solid #c3e6cb';
+                statusDiv.innerHTML = message;
+            }
+            
+            function refreshStrava() {
+                const btn = document.getElementById('strava-refresh-btn');
+                btn.disabled = true;
+                btn.innerHTML = '⏳ Refreshing...';
+                
+                fetch('/strava/refresh', { method: 'POST' })
+                    .then(response => response.json())
+                    .then(data => {
+                        btn.disabled = false;
+                        btn.innerHTML = '🏃 Refresh Strava';
+                        
+                        if (data.error) {
+                            showStatus(data.message || data.error, true);
+                        } else {
+                            let message = data.message;
+                            if (data.latest) {
+                                message += `<br><small>Latest activity: ${data.latest}</small>`;
+                            }
+                            showStatus(message, false);
+                        }
+                    })
+                    .catch(error => {
+                        btn.disabled = false;
+                        btn.innerHTML = '🏃 Refresh Strava';
+                        showStatus('Error refreshing Strava: ' + error.message, true);
+                    });
+            }
+            
+            function refreshSpotify() {
+                const btn = document.getElementById('spotify-refresh-btn');
+                btn.disabled = true;
+                btn.innerHTML = '⏳ Syncing...';
+                
+                fetch('/spotify/sync', { method: 'POST' })
+                    .then(response => response.json())
+                    .then(data => {
+                        btn.disabled = false;
+                        btn.innerHTML = '🎵 Sync Spotify';
+                        
+                        if (data.error) {
+                            showStatus(data.message || data.error, true);
+                        } else {
+                            showStatus(data.message, false);
+                        }
+                    })
+                    .catch(error => {
+                        btn.disabled = false;
+                        btn.innerHTML = '🎵 Sync Spotify';
+                        showStatus('Error syncing Spotify: ' + error.message, true);
+                    });
+            }
+        </script>
         {% endif %}
         
         <div class="info-box">

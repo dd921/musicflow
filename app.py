@@ -417,9 +417,57 @@ def spotify_sync():
         # Sync tracks from Spotify API
         result = track_storage.sync_from_spotify(spotify_client)
         
+        # Add a user-friendly message
+        if 'error' in result:
+            result['message'] = f"Error syncing: {result['error']}"
+        elif result.get('stored', 0) > 0:
+            result['message'] = f"✓ Synced {result['stored']} new tracks from Spotify ({result['fetched']} fetched, {result['skipped']} already stored). Total in database: {result['total_in_db']}"
+        else:
+            result['message'] = f"No new tracks to sync. All {result['fetched']} fetched tracks already stored. Total in database: {result['total_in_db']}"
+        
         return jsonify(result)
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': str(e), 'message': f'Error: {str(e)}'}), 500
+
+
+@app.route('/strava/refresh', methods=['POST'])
+def strava_refresh():
+    """Refresh Strava activities list."""
+    if 'strava_token' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    try:
+        global strava_client
+        if not strava_client:
+            strava_client = StravaClient(access_token=session['strava_token'])
+        
+        # Get activities from last 30 days
+        activities_list = strava_client.get_activities(
+            after=datetime.now() - timedelta(days=30)
+        )
+        
+        # Build response with activity details
+        activity_summaries = []
+        for activity in activities_list[:5]:  # Show first 5
+            activity_summaries.append({
+                'name': activity.get('name', 'Untitled'),
+                'type': activity.get('type', 'Unknown'),
+                'date': activity.get('start_date', '')[:10]
+            })
+        
+        result = {
+            'count': len(activities_list),
+            'activities': activity_summaries,
+            'message': f"✓ Refreshed {len(activities_list)} activities from the last 30 days"
+        }
+        
+        if activities_list:
+            latest = activities_list[0]
+            result['latest'] = f"{latest.get('name', 'Untitled')} on {latest.get('start_date', '')[:10]}"
+        
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e), 'message': f'Error: {str(e)}'}), 500
 
 
 @app.route('/spotify/storage')
