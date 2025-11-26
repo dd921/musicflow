@@ -7,6 +7,7 @@ from plotly.subplots import make_subplots
 from typing import Dict, List, Optional
 from datetime import timedelta
 import numpy as np
+import pytz
 
 
 class WorkoutPlotter:
@@ -55,14 +56,22 @@ class WorkoutPlotter:
         if num_subplots == 0:
             raise ValueError("No metric data available to plot")
         
-        # Create subplots
+        # Calculate vertical spacing - more space for fewer subplots
+        if num_subplots <= 2:
+            v_spacing = 0.15
+        elif num_subplots <= 3:
+            v_spacing = 0.12
+        else:
+            v_spacing = 0.08
+        
+        # Create subplots with proper spacing
         fig = make_subplots(
             rows=num_subplots,
             cols=1,
             shared_xaxes=True,
-            vertical_spacing=0.05,
+            vertical_spacing=v_spacing,
             subplot_titles=self._get_subplot_titles(has_heartrate, has_pace, 
-                                                   has_cadence, has_power, has_altitude),
+                                                   has_cadence, has_power, has_altitude, use_imperial),
             row_heights=[1] * num_subplots
         )
         
@@ -205,38 +214,59 @@ class WorkoutPlotter:
         activity_name = activity.get('name', 'Workout')
         activity_date = activity.get('start_date', '')[:10]
         
+        # Calculate height based on number of subplots (more space per subplot)
+        height_per_subplot = 250
+        total_height = height_per_subplot * num_subplots + 100  # Extra for title and margins
+        
         fig.update_layout(
             title=dict(
-                text=f"{activity_name} - {activity_date}<br><sub>Overlaid with Spotify Tracks</sub>",
+                text=f"{activity_name} - {activity_date}",
                 x=0.5,
-                xanchor='center'
+                xanchor='center',
+                font=dict(size=18)
             ),
-            height=300 * num_subplots,
+            height=total_height,
             showlegend=False,
             hovermode='x unified',
-            template='plotly_white'
+            template='plotly_white',
+            margin=dict(t=80, b=60, l=80, r=40)
         )
         
-        # Update x-axis label on last subplot
+        # Update all x-axes
+        for i in range(1, num_subplots + 1):
+            fig.update_xaxes(
+                showgrid=True,
+                gridcolor='rgba(128, 128, 128, 0.2)',
+                row=i, col=1
+            )
+            fig.update_yaxes(
+                showgrid=True,
+                gridcolor='rgba(128, 128, 128, 0.2)',
+                row=i, col=1
+            )
+        
+        # Update x-axis label on last subplot only
         fig.update_xaxes(title_text="Time (minutes)", row=num_subplots, col=1)
         
         return fig
     
     def _get_subplot_titles(self, has_heartrate: bool, has_pace: bool,
                            has_cadence: bool, has_power: bool, 
-                           has_altitude: bool) -> List[str]:
+                           has_altitude: bool, use_imperial: bool = False) -> List[str]:
         """Generate subplot titles based on available metrics."""
         titles = []
         if has_heartrate:
-            titles.append("Heart Rate")
+            titles.append("Heart Rate (bpm)")
         if has_pace:
-            titles.append("Pace")
+            pace_unit = "min/mile" if use_imperial else "min/km"
+            titles.append(f"Pace ({pace_unit})")
         if has_cadence:
-            titles.append("Cadence")
+            titles.append("Cadence (rpm)")
         if has_power:
-            titles.append("Power")
+            titles.append("Power (W)")
         if has_altitude:
-            titles.append("Altitude")
+            altitude_unit = "ft" if use_imperial else "m"
+            titles.append(f"Altitude ({altitude_unit})")
         return titles
     
     def _get_track_colors(self, df: pd.DataFrame, length: int) -> List[float]:
@@ -305,82 +335,137 @@ class WorkoutPlotter:
             fig.add_annotation(
                 text="No tracks available for this activity",
                 xref="paper", yref="paper",
-                x=0.5, y=0.5, showarrow=False
+                x=0.5, y=0.5, showarrow=False,
+                font=dict(size=16, color='#A0A0A0')
+            )
+            fig.update_layout(
+                height=200,
+                template='plotly_white'
             )
             return fig
         
         # Import timezone converter
         from units import TimezoneConverter
+        import pytz
         
-        # Convert reference timestamp to target timezone if needed
+        # Get reference time (activity start)
         reference_time = df['timestamp'].iloc[0]
-        if timezone != 'UTC':
-            reference_time = TimezoneConverter.convert_datetime(reference_time, timezone)
+        
+        # Ensure reference_time is timezone-aware
+        if reference_time.tzinfo is None:
+            reference_time = pytz.UTC.localize(reference_time)
         
         # Create timeline data
         timeline_data = []
         for track in tracks:
-            # Use activity timezone version if available
-            if 'overlap_start' in track and 'overlap_end' in track:
-                overlap_start = track['overlap_start']
-                overlap_end = track['overlap_end']
+            try:
+                # Use activity timezone version if available
+                if 'overlap_start' in track and 'overlap_end' in track and track['overlap_start'] is not None:
+                    overlap_start = track['overlap_start']
+                    overlap_end = track['overlap_end']
+                    
+                    # Ensure timezone-aware
+                    if hasattr(overlap_start, 'tzinfo') and overlap_start.tzinfo is None:
+                        overlap_start = pytz.UTC.localize(overlap_start)
+                    if hasattr(overlap_end, 'tzinfo') and overlap_end.tzinfo is None:
+                        overlap_end = pytz.UTC.localize(overlap_end)
+                    
+                    start_min = (overlap_start - reference_time).total_seconds() / 60
+                    end_min = (overlap_end - reference_time).total_seconds() / 60
+                else:
+                    # Fallback to played_at_timestamp
+                    track_start = track.get('played_at_timestamp_activity_tz', track.get('played_at_timestamp'))
+                    if track_start is None:
+                        continue
+                    
+                    # Ensure timezone-aware
+                    if hasattr(track_start, 'tzinfo') and track_start.tzinfo is None:
+                        track_start = pytz.UTC.localize(track_start)
+                    
+                    track_end = track_start + timedelta(milliseconds=track.get('duration_ms', 0))
+                    
+                    start_min = (track_start - reference_time).total_seconds() / 60
+                    end_min = (track_end - reference_time).total_seconds() / 60
                 
-                # Convert to target timezone if needed
-                if timezone != 'UTC':
-                    overlap_start = TimezoneConverter.convert_datetime(overlap_start, timezone)
-                    overlap_end = TimezoneConverter.convert_datetime(overlap_end, timezone)
+                # Truncate track name for display
+                track_name = track.get('track_name', 'Unknown')[:40]
+                artists = ', '.join(track.get('artists', ['Unknown']))[:30]
+                display_name = f"{track_name}"
+                full_name = f"{track.get('track_name', 'Unknown')} - {', '.join(track.get('artists', ['Unknown']))}"
                 
-                start_min = (overlap_start - reference_time).total_seconds() / 60
-                end_min = (overlap_end - reference_time).total_seconds() / 60
-            else:
-                # Fallback to played_at_timestamp
-                track_start = track.get('played_at_timestamp_activity_tz', track.get('played_at_timestamp'))
-                if timezone != 'UTC':
-                    track_start = TimezoneConverter.convert_datetime(track_start, timezone)
-                track_end = track_start + timedelta(milliseconds=track['duration_ms'])
-                
-                start_min = (track_start - reference_time).total_seconds() / 60
-                end_min = (track_end - reference_time).total_seconds() / 60
-            
-            timeline_data.append({
-                'track': f"{track['track_name']} - {', '.join(track['artists'])}",
-                'start': start_min,
-                'end': end_min,
-                'duration': end_min - start_min
-            })
+                timeline_data.append({
+                    'track': display_name,
+                    'full_name': full_name,
+                    'artists': artists,
+                    'start': float(start_min),
+                    'end': float(end_min),
+                    'duration': float(end_min - start_min)
+                })
+            except Exception as e:
+                print(f"Error processing track for timeline: {e}")
+                continue
         
-        # Create Gantt-like chart
+        if not timeline_data:
+            fig = go.Figure()
+            fig.add_annotation(
+                text="Could not process track timeline data",
+                xref="paper", yref="paper",
+                x=0.5, y=0.5, showarrow=False,
+                font=dict(size=16, color='#A0A0A0')
+            )
+            fig.update_layout(height=200, template='plotly_white')
+            return fig
+        
+        # Create horizontal bar chart for timeline
         fig = go.Figure()
         
+        colors = ['#FF6B35', '#1DB954', '#FF3366', '#667eea', '#f39c12', 
+                  '#2ecc71', '#e74c3c', '#9b59b6', '#3498db', '#1abc9c']
+        
         for i, item in enumerate(timeline_data):
-            fig.add_trace(go.Scatter(
-                x=[item['start'], item['end']],
-                y=[i, i],
-                mode='lines+markers',
+            color = colors[i % len(colors)]
+            
+            # Create a bar using shapes for better control
+            fig.add_trace(go.Bar(
+                y=[item['track']],
+                x=[item['duration']],
+                base=[item['start']],
+                orientation='h',
                 name=item['track'],
-                line=dict(width=20, color=f'hsl({(i * 137.5) % 360}, 70%, 50%)'),
-                marker=dict(size=10),
-                hovertemplate=f"<b>{item['track']}</b><br>" +
-                             f"Start: {item['start']:.1f} min<br>" +
-                             f"End: {item['end']:.1f} min<br>" +
-                             f"Duration: {item['duration']:.1f} min<extra></extra>"
+                marker=dict(color=color, line=dict(width=0)),
+                hovertemplate=(
+                    f"<b>{item['full_name']}</b><br>" +
+                    f"Start: {item['start']:.1f} min<br>" +
+                    f"End: {item['end']:.1f} min<br>" +
+                    f"Duration: {item['duration']:.1f} min<extra></extra>"
+                ),
+                showlegend=False
             ))
         
+        # Calculate height based on number of tracks
+        bar_height = 40
+        chart_height = max(200, len(timeline_data) * bar_height + 100)
+        
         fig.update_layout(
-            title="Spotify Tracks Timeline",
+            title=dict(
+                text="🎵 Track Timeline",
+                font=dict(size=16)
+            ),
             xaxis_title="Time (minutes)",
-            yaxis_title="Track",
-            height=200 + len(timeline_data) * 30,
+            height=chart_height,
             showlegend=False,
             hovermode='closest',
-            template='plotly_white'
-        )
-        
-        # Update y-axis to show track names
-        fig.update_yaxes(
-            tickmode='array',
-            tickvals=list(range(len(timeline_data))),
-            ticktext=[item['track'] for item in timeline_data]
+            template='plotly_white',
+            barmode='overlay',
+            margin=dict(l=200, r=40, t=60, b=60),
+            yaxis=dict(
+                autorange='reversed',  # Show first track at top
+                tickfont=dict(size=11)
+            ),
+            xaxis=dict(
+                showgrid=True,
+                gridcolor='rgba(128, 128, 128, 0.2)'
+            )
         )
         
         return fig

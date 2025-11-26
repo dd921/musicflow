@@ -407,24 +407,62 @@
     var workoutChartData = {{ workout_chart|safe }};
     var timelineChartData = {{ timeline_chart|safe }};
     
-    // Dark theme for Plotly
+    // Plotly config
     const plotlyConfig = {
         responsive: true,
         displayModeBar: true,
-        displaylogo: false
+        displaylogo: false,
+        modeBarButtonsToRemove: ['lasso2d', 'select2d']
     };
     
-    const darkLayout = {
-        paper_bgcolor: 'rgba(0,0,0,0)',
-        plot_bgcolor: 'rgba(0,0,0,0)',
-        font: { color: '#A0A0A0' },
-        xaxis: { gridcolor: '#2D2D2D', zerolinecolor: '#2D2D2D' },
-        yaxis: { gridcolor: '#2D2D2D', zerolinecolor: '#2D2D2D' }
-    };
+    // Dark theme overrides for workout chart
+    function applyDarkTheme(chartData) {
+        chartData.layout.paper_bgcolor = 'rgba(0,0,0,0)';
+        chartData.layout.plot_bgcolor = 'rgba(26,26,26,0.5)';
+        chartData.layout.font = { color: '#A0A0A0', family: 'Outfit, sans-serif' };
+        
+        // Update all axes
+        for (let key in chartData.layout) {
+            if (key.startsWith('xaxis') || key.startsWith('yaxis')) {
+                chartData.layout[key] = chartData.layout[key] || {};
+                chartData.layout[key].gridcolor = 'rgba(128, 128, 128, 0.15)';
+                chartData.layout[key].zerolinecolor = 'rgba(128, 128, 128, 0.3)';
+                chartData.layout[key].linecolor = 'rgba(128, 128, 128, 0.3)';
+                chartData.layout[key].tickfont = { color: '#A0A0A0' };
+                if (chartData.layout[key].title) {
+                    if (typeof chartData.layout[key].title === 'string') {
+                        chartData.layout[key].title = { text: chartData.layout[key].title, font: { color: '#FFFFFF' } };
+                    } else {
+                        chartData.layout[key].title.font = { color: '#FFFFFF' };
+                    }
+                }
+            }
+        }
+        
+        // Update title color
+        if (chartData.layout.title) {
+            if (typeof chartData.layout.title === 'string') {
+                chartData.layout.title = { text: chartData.layout.title, font: { color: '#FFFFFF' } };
+            } else {
+                chartData.layout.title.font = chartData.layout.title.font || {};
+                chartData.layout.title.font.color = '#FFFFFF';
+            }
+        }
+        
+        // Update annotations (subplot titles)
+        if (chartData.layout.annotations) {
+            chartData.layout.annotations.forEach(ann => {
+                ann.font = ann.font || {};
+                ann.font.color = '#FFFFFF';
+            });
+        }
+        
+        return chartData;
+    }
     
-    // Merge dark theme with chart layouts
-    Object.assign(workoutChartData.layout, darkLayout);
-    Object.assign(timelineChartData.layout, darkLayout);
+    // Apply dark theme to both charts
+    applyDarkTheme(workoutChartData);
+    applyDarkTheme(timelineChartData);
     
     // Render charts
     Plotly.newPlot('workout-chart', workoutChartData.data, workoutChartData.layout, plotlyConfig);
