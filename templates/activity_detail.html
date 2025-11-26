@@ -151,7 +151,7 @@
     <div class="container">
         <header>
             <h1>{{ activity.name or 'Untitled Activity' }}</h1>
-            <p style="color: #666;">{{ activity.start_date[:10] }} {{ activity.start_date[11:16] }}</p>
+            <p style="color: #666;">{{ activity.start_date|format_datetime_tz(timezone) }}</p>
             
             <div class="activity-info">
                 <div class="info-item">
@@ -160,7 +160,7 @@
                 </div>
                 <div class="info-item">
                     <span class="info-label">Distance</span>
-                    <span class="info-value">{{ "%.2f"|format(activity.distance / 1000) }} km</span>
+                    <span class="info-value">{{ activity.distance|format_distance(units) }}</span>
                 </div>
                 <div class="info-item">
                     <span class="info-label">Duration</span>
@@ -175,13 +175,14 @@
                 {% if activity.average_speed %}
                 <div class="info-item">
                     <span class="info-label">Avg Pace</span>
-                    <span class="info-value">{{ "%.2f"|format(1000 / (activity.average_speed * 60)) }} min/km</span>
+                    {% set pace_km = activity.average_speed|calculate_pace %}
+                    <span class="info-value">{{ pace_km|format_pace(units) }}</span>
                 </div>
                 {% endif %}
                 {% if activity.total_elevation_gain %}
                 <div class="info-item">
                     <span class="info-label">Elevation</span>
-                    <span class="info-value">{{ "%.0f"|format(activity.total_elevation_gain) }} m</span>
+                    <span class="info-value">{{ activity.total_elevation_gain|format_elevation(units) }}</span>
                 </div>
                 {% endif %}
             </div>
@@ -257,6 +258,11 @@
                 <div class="track-info">
                     <div class="track-name">{{ track.track_name }}</div>
                     <div class="track-artist">{{ track.artists|join(', ') }}</div>
+                    {% if track.overlap_start %}
+                    <div style="font-size: 0.8em; color: #999; margin-top: 5px;">
+                        Played: {{ track.overlap_start|format_datetime_tz(timezone) }}
+                    </div>
+                    {% endif %}
                 </div>
                 <div class="track-duration">{{ "%.1f"|format(track.duration_ms / 1000) }}s</div>
             </div>
@@ -278,25 +284,8 @@
             const units = document.querySelector('input[name="units"]:checked').value;
             const timezone = document.getElementById('timezone-select').value;
             
-            // Show loading state
-            const chartDiv = document.getElementById('workout-chart');
-            chartDiv.innerHTML = '<div style="text-align: center; padding: 50px;">Loading...</div>';
-            
-            // Fetch new chart data
-            fetch(`/api/activity/${activityId}/chart?units=${units}&timezone=${timezone}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.error) {
-                        chartDiv.innerHTML = `<div style="color: red; padding: 20px;">Error: ${data.error}</div>`;
-                        return;
-                    }
-                    
-                    const newChartData = JSON.parse(data.chart);
-                    Plotly.newPlot('workout-chart', newChartData.data, newChartData.layout, {responsive: true});
-                })
-                .catch(error => {
-                    chartDiv.innerHTML = `<div style="color: red; padding: 20px;">Error: ${error.message}</div>`;
-                });
+            // Reload page with new preferences to update summary, charts, and all data
+            window.location.href = `{{ url_for('activity_detail', activity_id=activity.id) }}?units=${units}&timezone=${timezone}`;
         }
     </script>
 </body>

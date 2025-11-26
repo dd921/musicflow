@@ -5,6 +5,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from typing import Dict, List, Optional
+from datetime import timedelta
 import numpy as np
 
 
@@ -287,7 +288,8 @@ class WorkoutPlotter:
                 row="all"
             )
     
-    def create_track_timeline(self, df: pd.DataFrame, tracks: List[Dict]) -> go.Figure:
+    def create_track_timeline(self, df: pd.DataFrame, tracks: List[Dict], 
+                             timezone: str = 'UTC') -> go.Figure:
         """
         Create a timeline visualization showing which tracks were playing when.
         
@@ -307,11 +309,38 @@ class WorkoutPlotter:
             )
             return fig
         
+        # Import timezone converter
+        from units import TimezoneConverter
+        
+        # Convert reference timestamp to target timezone if needed
+        reference_time = df['timestamp'].iloc[0]
+        if timezone != 'UTC':
+            reference_time = TimezoneConverter.convert_datetime(reference_time, timezone)
+        
         # Create timeline data
         timeline_data = []
         for track in tracks:
-            start_min = (track['overlap_start'] - df['timestamp'].iloc[0]).total_seconds() / 60
-            end_min = (track['overlap_end'] - df['timestamp'].iloc[0]).total_seconds() / 60
+            # Use activity timezone version if available
+            if 'overlap_start' in track and 'overlap_end' in track:
+                overlap_start = track['overlap_start']
+                overlap_end = track['overlap_end']
+                
+                # Convert to target timezone if needed
+                if timezone != 'UTC':
+                    overlap_start = TimezoneConverter.convert_datetime(overlap_start, timezone)
+                    overlap_end = TimezoneConverter.convert_datetime(overlap_end, timezone)
+                
+                start_min = (overlap_start - reference_time).total_seconds() / 60
+                end_min = (overlap_end - reference_time).total_seconds() / 60
+            else:
+                # Fallback to played_at_timestamp
+                track_start = track.get('played_at_timestamp_activity_tz', track.get('played_at_timestamp'))
+                if timezone != 'UTC':
+                    track_start = TimezoneConverter.convert_datetime(track_start, timezone)
+                track_end = track_start + timedelta(milliseconds=track['duration_ms'])
+                
+                start_min = (track_start - reference_time).total_seconds() / 60
+                end_min = (track_end - reference_time).total_seconds() / 60
             
             timeline_data.append({
                 'track': f"{track['track_name']} - {', '.join(track['artists'])}",

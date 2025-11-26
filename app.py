@@ -14,6 +14,67 @@ import config
 app = Flask(__name__)
 app.secret_key = config.SECRET_KEY
 
+# Add Jinja2 filters for formatting
+from formatting import format_distance, format_pace, format_elevation, format_datetime, format_date, format_time, calculate_pace_from_speed
+from units import UnitConverter, TimezoneConverter
+import pytz
+
+@app.template_filter('format_distance')
+def format_distance_filter(distance_m, units='metric'):
+    """Jinja2 filter to format distance."""
+    return format_distance(distance_m, units)
+
+@app.template_filter('format_pace')
+def format_pace_filter(pace_min_per_km, units='metric'):
+    """Jinja2 filter to format pace."""
+    return format_pace(pace_min_per_km, units)
+
+@app.template_filter('format_elevation')
+def format_elevation_filter(elevation_m, units='metric'):
+    """Jinja2 filter to format elevation."""
+    return format_elevation(elevation_m, units)
+
+@app.template_filter('format_datetime_tz')
+def format_datetime_tz_filter(dt_str, timezone='UTC'):
+    """Jinja2 filter to format datetime with timezone."""
+    try:
+        if isinstance(dt_str, str):
+            dt = datetime.fromisoformat(dt_str.replace('Z', '+00:00'))
+        else:
+            dt = dt_str
+        return format_datetime(dt, timezone)
+    except:
+        return str(dt_str)
+
+@app.template_filter('format_date_tz')
+def format_date_tz_filter(dt_str, timezone='UTC'):
+    """Jinja2 filter to format date with timezone."""
+    try:
+        if isinstance(dt_str, str):
+            dt = datetime.fromisoformat(dt_str.replace('Z', '+00:00'))
+        else:
+            dt = dt_str
+        return format_date(dt, timezone)
+    except:
+        return str(dt_str)[:10] if isinstance(dt_str, str) else str(dt_str)
+
+@app.template_filter('format_time_tz')
+def format_time_tz_filter(dt_str, timezone='UTC'):
+    """Jinja2 filter to format time with timezone."""
+    try:
+        if isinstance(dt_str, str):
+            dt = datetime.fromisoformat(dt_str.replace('Z', '+00:00'))
+        else:
+            dt = dt_str
+        return format_time(dt, timezone)
+    except:
+        return str(dt_str)[11:16] if isinstance(dt_str, str) and len(dt_str) > 16 else str(dt_str)
+
+@app.template_filter('calculate_pace')
+def calculate_pace_filter(speed_ms):
+    """Jinja2 filter to calculate pace from speed."""
+    return calculate_pace_from_speed(speed_ms)
+
 # Initialize clients (will be set after authentication)
 strava_client = None
 spotify_client = None
@@ -136,6 +197,14 @@ def activities():
         return redirect(url_for('strava_auth'))
     
     try:
+        # Get unit and timezone preferences
+        units = request.args.get('units', session.get('units', 'metric'))
+        timezone = request.args.get('timezone', session.get('timezone', 'UTC'))
+        
+        # Store preferences in session
+        session['units'] = units
+        session['timezone'] = timezone
+        
         # Initialize client if needed
         global strava_client
         if not strava_client:
@@ -146,7 +215,13 @@ def activities():
             after=datetime.now() - timedelta(days=30)
         )
         
-        return render_template('activities.html', activities=activities_list)
+        from units import TimezoneConverter
+        
+        return render_template('activities.html', 
+                             activities=activities_list,
+                             units=units,
+                             timezone=timezone,
+                             available_timezones=TimezoneConverter.get_available_timezones())
     except Exception as e:
         return f"Error fetching activities: {str(e)}", 500
 
@@ -194,7 +269,7 @@ def activity_detail(activity_id):
         # Create charts with preferences
         workout_chart = plotter.create_workout_chart(combined_df, activity, tracks, 
                                                     units=units, timezone=timezone)
-        timeline_chart = plotter.create_track_timeline(combined_df, tracks)
+        timeline_chart = plotter.create_track_timeline(combined_df, tracks, timezone=timezone)
         
         # Convert to JSON for rendering
         workout_chart_json = workout_chart.to_json()
@@ -248,12 +323,14 @@ def api_activity_chart(activity_id):
         
         combined_df, activity, tracks = data_prep.prepare_combined_data(activity_id)
         
-        # Create chart with new preferences
+        # Create charts with new preferences
         workout_chart = plotter.create_workout_chart(combined_df, activity, tracks,
                                                     units=units, timezone=timezone)
+        timeline_chart = plotter.create_track_timeline(combined_df, tracks, timezone=timezone)
         
         return jsonify({
-            'chart': workout_chart.to_json()
+            'workout_chart': workout_chart.to_json(),
+            'timeline_chart': timeline_chart.to_json()
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500

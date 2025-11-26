@@ -135,11 +135,48 @@
         <header>
             <h1>My Activities</h1>
             <p style="color: #666;">Select an activity to view charts with Spotify track overlays</p>
+            
+            <div class="controls" style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                <div style="display: flex; gap: 20px; align-items: center; flex-wrap: wrap;">
+                    <div>
+                        <label style="font-weight: bold; margin-right: 10px;">Units:</label>
+                        <label style="cursor: pointer; margin-right: 15px;">
+                            <input type="radio" name="units" value="metric" {{ 'checked' if units == 'metric' else '' }} 
+                                   onchange="updatePreferences()" style="margin-right: 5px;">
+                            Metric (km, m)
+                        </label>
+                        <label style="cursor: pointer;">
+                            <input type="radio" name="units" value="imperial" {{ 'checked' if units == 'imperial' else '' }} 
+                                   onchange="updatePreferences()" style="margin-right: 5px;">
+                            Imperial (miles, ft)
+                        </label>
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 10px;">Timezone:</label>
+                        <select id="timezone-select" onchange="updatePreferences()" style="padding: 5px 10px; border-radius: 5px; border: 1px solid #ddd;">
+                            {% for tz_code, tz_name in available_timezones.items() %}
+                            <option value="{{ tz_code }}" {{ 'selected' if timezone == tz_code else '' }}>
+                                {{ tz_name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
             <div class="nav-links">
                 <a href="{{ url_for('index') }}">← Back to Home</a>
                 <a href="{{ url_for('logout') }}">Logout</a>
             </div>
         </header>
+        
+        <script>
+            function updatePreferences() {
+                const units = document.querySelector('input[name="units"]:checked').value;
+                const timezone = document.getElementById('timezone-select').value;
+                window.location.href = `{{ url_for('activities') }}?units=${units}&timezone=${timezone}`;
+            }
+        </script>
         
         {% if activities %}
         <div class="activities-grid">
@@ -147,11 +184,11 @@
             <div class="activity-card" onclick="window.location.href='{{ url_for('activity_detail', activity_id=activity.id) }}'">
                 <span class="activity-type">{{ activity.type }}</span>
                 <div class="activity-name">{{ activity.name or 'Untitled Activity' }}</div>
-                <div class="activity-date">{{ activity.start_date[:10] }} {{ activity.start_date[11:16] }}</div>
+                <div class="activity-date">{{ activity.start_date|format_date_tz(timezone) }} {{ activity.start_date|format_time_tz(timezone) }}</div>
                 <div class="activity-stats">
                     <div class="stat">
                         <span class="stat-label">Distance</span>
-                        <span class="stat-value">{{ "%.2f"|format(activity.distance / 1000) }} km</span>
+                        <span class="stat-value">{{ activity.distance|format_distance(units) }}</span>
                     </div>
                     <div class="stat">
                         <span class="stat-label">Duration</span>
@@ -166,7 +203,8 @@
                     {% if activity.average_speed %}
                     <div class="stat">
                         <span class="stat-label">Avg Pace</span>
-                        <span class="stat-value">{{ "%.2f"|format(1000 / (activity.average_speed * 60)) }} min/km</span>
+                        {% set pace_km = activity.average_speed|calculate_pace %}
+                        <span class="stat-value">{{ pace_km|format_pace(units) }}</span>
                     </div>
                     {% endif %}
                 </div>

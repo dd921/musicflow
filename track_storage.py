@@ -28,25 +28,73 @@ class TrackStorage:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         
-        # Create tracks table
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS tracks (
-                track_id TEXT PRIMARY KEY,
-                track_name TEXT NOT NULL,
-                artists TEXT NOT NULL,
-                album TEXT,
-                duration_ms INTEGER NOT NULL,
-                played_at TEXT NOT NULL,
-                played_at_timestamp TEXT NOT NULL,
-                stored_at TEXT NOT NULL,
-                UNIQUE(track_id, played_at)
-            )
-        ''')
+        # Check if the old schema exists (with track_id as primary key only)
+        # If so, we need to migrate to the new schema
+        cursor.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='tracks'")
+        result = cursor.fetchone()
+        
+        if result and 'track_id TEXT PRIMARY KEY' in result[0] and 'id INTEGER PRIMARY KEY' not in result[0]:
+            # Old schema detected - need to migrate
+            print("Migrating database schema to support same track at different times...")
+            
+            # Create new table with correct schema
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS tracks_new (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    track_id TEXT NOT NULL,
+                    track_name TEXT NOT NULL,
+                    artists TEXT NOT NULL,
+                    album TEXT,
+                    duration_ms INTEGER NOT NULL,
+                    played_at TEXT NOT NULL,
+                    played_at_timestamp TEXT NOT NULL,
+                    stored_at TEXT NOT NULL,
+                    UNIQUE(track_id, played_at_timestamp)
+                )
+            ''')
+            
+            # Copy data from old table
+            cursor.execute('''
+                INSERT OR IGNORE INTO tracks_new 
+                (track_id, track_name, artists, album, duration_ms, played_at, played_at_timestamp, stored_at)
+                SELECT track_id, track_name, artists, album, duration_ms, played_at, played_at_timestamp, stored_at
+                FROM tracks
+            ''')
+            
+            # Drop old table and rename new one
+            cursor.execute('DROP TABLE tracks')
+            cursor.execute('ALTER TABLE tracks_new RENAME TO tracks')
+            
+            print("Database migration complete.")
+        elif not result:
+            # Create new table with correct schema
+            # Deduplication is based on track_id + played_at_timestamp
+            # This allows the same track to be stored multiple times if played at different times
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS tracks (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    track_id TEXT NOT NULL,
+                    track_name TEXT NOT NULL,
+                    artists TEXT NOT NULL,
+                    album TEXT,
+                    duration_ms INTEGER NOT NULL,
+                    played_at TEXT NOT NULL,
+                    played_at_timestamp TEXT NOT NULL,
+                    stored_at TEXT NOT NULL,
+                    UNIQUE(track_id, played_at_timestamp)
+                )
+            ''')
         
         # Create index for faster queries
         cursor.execute('''
             CREATE INDEX IF NOT EXISTS idx_played_at 
             ON tracks(played_at_timestamp)
+        ''')
+        
+        # Create index on track_id for faster lookups
+        cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_track_id 
+            ON tracks(track_id)
         ''')
         
         conn.commit()
