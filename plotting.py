@@ -102,7 +102,11 @@ class WorkoutPlotter:
                 ),
                 row=row, col=1
             )
-            fig.update_yaxes(title_text="Heart Rate (bpm)", row=row, col=1)
+            fig.update_yaxes(
+                title_text="Heart Rate (bpm)", 
+                row=row, col=1,
+                range=[60, None]  # Start y-axis at 60 bpm
+            )
             row += 1
         
         # Pace
@@ -155,11 +159,11 @@ class WorkoutPlotter:
                     line=dict(color='#2ecc71', width=2),
                     hovertemplate='<b>Cadence</b><br>' +
                                   'Time: %{x:.1f} min<br>' +
-                                  'Cadence: %{y:.0f} rpm<extra></extra>'
+                                  'Cadence: %{y:.0f} spm<extra></extra>'
                 ),
                 row=row, col=1
             )
-            fig.update_yaxes(title_text="Cadence (rpm)", row=row, col=1)
+            fig.update_yaxes(title_text="Cadence (spm)", row=row, col=1)
             row += 1
         
         # Power
@@ -262,7 +266,7 @@ class WorkoutPlotter:
             pace_unit = "min/mile" if use_imperial else "min/km"
             titles.append(f"Pace ({pace_unit})")
         if has_cadence:
-            titles.append("Cadence (rpm)")
+            titles.append("Cadence (spm)")
         if has_power:
             titles.append("Power (W)")
         if has_altitude:
@@ -362,11 +366,21 @@ class WorkoutPlotter:
                 'end_x': x_data.iloc[-1]
             })
         
-        # Color palette for tracks
-        colors = ['rgba(255, 107, 53, 0.15)', 'rgba(29, 185, 84, 0.15)', 
-                  'rgba(255, 51, 102, 0.15)', 'rgba(102, 126, 234, 0.15)',
-                  'rgba(243, 156, 18, 0.15)', 'rgba(46, 204, 113, 0.15)',
-                  'rgba(231, 76, 60, 0.15)', 'rgba(155, 89, 182, 0.15)']
+        # Color palette for tracks - distinct, vibrant colors with 0.5 opacity
+        colors = [
+            'rgba(255, 107, 53, 0.5)',   # Orange
+            'rgba(29, 185, 84, 0.5)',     # Green
+            'rgba(102, 126, 234, 0.5)',   # Blue
+            'rgba(255, 51, 102, 0.5)',    # Pink
+            'rgba(243, 156, 18, 0.5)',    # Yellow
+            'rgba(155, 89, 182, 0.5)',    # Purple
+            'rgba(52, 152, 219, 0.5)',    # Light Blue
+            'rgba(231, 76, 60, 0.5)',     # Red
+            'rgba(46, 204, 113, 0.5)',    # Emerald
+            'rgba(241, 196, 15, 0.5)',    # Gold
+            'rgba(142, 68, 173, 0.5)',    # Dark Purple
+            'rgba(26, 188, 156, 0.5)'     # Turquoise
+        ]
         
         # Add shaded rectangles for each track period
         track_color_map = {}
@@ -399,7 +413,7 @@ class WorkoutPlotter:
                     fillcolor=color,
                     line=dict(width=0),
                     layer="below",
-                    opacity=0.2,
+                    opacity=0.5,
                     row=row, col=1
                 )
     
