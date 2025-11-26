@@ -117,18 +117,28 @@ class DataPreparator:
             data['heartrate'] = hr_data
         
         # Add pace (minutes per km) from velocity
+        # Strava API: velocity_smooth is in meters per second (m/s)
         velocity_data = get_stream_data('velocity_smooth')
         if velocity_data:
             velocity = velocity_data  # m/s
-            # Convert to pace (min/km), handling zero velocity
-            pace_km = [60000 / (v * 60) if v > 0 else None for v in velocity]
+            
+            # Calculate pace (min/km) from velocity (m/s)
+            # Pace = time to cover 1 km
+            # Time to cover 1000m = 1000 / v seconds
+            # Time to cover 1 km = (1000 / v) / 60 minutes = 1000 / (v * 60) minutes
+            pace_km = [1000 / (v * 60) if v > 0 else None for v in velocity]
             data['pace_min_per_km'] = pace_km
+            
             # Also calculate pace in min/mile for imperial units
+            # 1 mile = 1.60934 km, so pace in min/mile = pace in min/km * 1.60934
             from units import UnitConverter
             data['pace_min_per_mile'] = [UnitConverter.pace_km_to_mile(p) if p else None for p in pace_km]
+            
             # Speed in both units
+            # Speed in km/h = velocity (m/s) * 3.6
             speed_kmh = [v * 3.6 if v > 0 else None for v in velocity]
             data['speed_kmh'] = speed_kmh
+            # Speed in mph = speed (km/h) * 0.621371
             data['speed_mph'] = [UnitConverter.speed_kmh_to_mph(s) if s else None for s in speed_kmh]
         
         # Add cadence if available

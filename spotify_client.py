@@ -120,16 +120,40 @@ class SpotifyClient:
             raise Exception(f"Error fetching recently played tracks: {str(e)}")
     
     def _parse_iso_timestamp(self, iso_string: str) -> datetime:
-        """Parse ISO 8601 timestamp string to datetime object."""
-        # Spotify returns timestamps like "2024-01-15T10:30:00.000Z"
+        """
+        Parse ISO 8601 timestamp string to timezone-aware datetime object.
+        
+        Spotify API returns timestamps in ISO 8601 format, always in UTC.
+        Format: "2024-01-15T10:30:00.000Z" where Z indicates UTC.
+        """
+        import pytz
+        
         try:
-            # Remove 'Z' and parse
+            # Spotify returns UTC timestamps with 'Z' suffix
             if iso_string.endswith('Z'):
-                iso_string = iso_string[:-1] + '+00:00'
-            return datetime.fromisoformat(iso_string)
-        except Exception:
+                # Parse and explicitly set to UTC
+                dt_str = iso_string[:-1]  # Remove 'Z'
+                dt = datetime.fromisoformat(dt_str)
+                # Make timezone-aware (UTC)
+                if dt.tzinfo is None:
+                    dt = pytz.UTC.localize(dt)
+                return dt
+            else:
+                # Parse with timezone info if present
+                dt = datetime.fromisoformat(iso_string)
+                if dt.tzinfo is None:
+                    # If no timezone info, assume UTC (Spotify standard)
+                    dt = pytz.UTC.localize(dt)
+                return dt
+        except Exception as e:
             # Fallback parsing
-            return datetime.strptime(iso_string.replace('Z', ''), '%Y-%m-%dT%H:%M:%S.%f')
+            try:
+                dt = datetime.strptime(iso_string.replace('Z', ''), '%Y-%m-%dT%H:%M:%S.%f')
+                return pytz.UTC.localize(dt)
+            except:
+                # Last resort - try without microseconds
+                dt = datetime.strptime(iso_string.replace('Z', ''), '%Y-%m-%dT%H:%M:%S')
+                return pytz.UTC.localize(dt)
     
     def get_currently_playing(self) -> Optional[Dict]:
         """
