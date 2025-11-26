@@ -338,12 +338,23 @@ def activity_detail(activity_id):
         timezone = request.args.get('timezone', session.get('timezone', 'UTC'))
         
         # Get smoothing preferences from request or session
-        smooth_heartrate = request.args.get('smooth_hr', session.get('smooth_hr', 'false')).lower() == 'true'
-        smooth_pace = request.args.get('smooth_pace', session.get('smooth_pace', 'false')).lower() == 'true'
-        smooth_cadence = request.args.get('smooth_cadence', session.get('smooth_cadence', 'false')).lower() == 'true'
-        smooth_power = request.args.get('smooth_power', session.get('smooth_power', 'false')).lower() == 'true'
-        smooth_altitude = request.args.get('smooth_altitude', session.get('smooth_altitude', 'false')).lower() == 'true'
-        smooth_window = int(request.args.get('smooth_window', session.get('smooth_window', '5')))
+        # Helper function to safely convert to boolean
+        def to_bool(value, default=False):
+            if isinstance(value, bool):
+                return value
+            if isinstance(value, str):
+                return value.lower() == 'true'
+            return default
+        
+        smooth_heartrate = to_bool(request.args.get('smooth_hr', session.get('smooth_hr', False)))
+        smooth_pace = to_bool(request.args.get('smooth_pace', session.get('smooth_pace', False)))
+        smooth_cadence = to_bool(request.args.get('smooth_cadence', session.get('smooth_cadence', False)))
+        smooth_power = to_bool(request.args.get('smooth_power', session.get('smooth_power', False)))
+        smooth_altitude = to_bool(request.args.get('smooth_altitude', session.get('smooth_altitude', False)))
+        
+        # Get window size, handling both string and int
+        smooth_window_val = request.args.get('smooth_window', session.get('smooth_window', 5))
+        smooth_window = int(smooth_window_val) if smooth_window_val else 5
         
         # Store preferences in session
         session['units'] = units
@@ -417,13 +428,24 @@ def api_activity_chart(activity_id):
         units = request.args.get('units', session.get('units', 'metric'))
         timezone = request.args.get('timezone', session.get('timezone', 'UTC'))
         
+        # Helper function to safely convert to boolean
+        def to_bool(value, default=False):
+            if isinstance(value, bool):
+                return value
+            if isinstance(value, str):
+                return value.lower() == 'true'
+            return default
+        
         # Get smoothing preferences
-        smooth_heartrate = request.args.get('smooth_hr', session.get('smooth_hr', 'false')).lower() == 'true'
-        smooth_pace = request.args.get('smooth_pace', session.get('smooth_pace', 'false')).lower() == 'true'
-        smooth_cadence = request.args.get('smooth_cadence', session.get('smooth_cadence', 'false')).lower() == 'true'
-        smooth_power = request.args.get('smooth_power', session.get('smooth_power', 'false')).lower() == 'true'
-        smooth_altitude = request.args.get('smooth_altitude', session.get('smooth_altitude', 'false')).lower() == 'true'
-        smooth_window = int(request.args.get('smooth_window', session.get('smooth_window', '5')))
+        smooth_heartrate = to_bool(request.args.get('smooth_hr', session.get('smooth_hr', False)))
+        smooth_pace = to_bool(request.args.get('smooth_pace', session.get('smooth_pace', False)))
+        smooth_cadence = to_bool(request.args.get('smooth_cadence', session.get('smooth_cadence', False)))
+        smooth_power = to_bool(request.args.get('smooth_power', session.get('smooth_power', False)))
+        smooth_altitude = to_bool(request.args.get('smooth_altitude', session.get('smooth_altitude', False)))
+        
+        # Get window size, handling both string and int
+        smooth_window_val = request.args.get('smooth_window', session.get('smooth_window', 5))
+        smooth_window = int(smooth_window_val) if smooth_window_val else 5
         
         # Store preferences
         session['units'] = units
