@@ -327,6 +327,40 @@
                 {% endfor %}
             </select>
         </div>
+    </div>
+    
+    <!-- Smoothing Controls -->
+    <div class="controls-panel animate-in animate-delay-3" style="margin-top: 15px;">
+        <div class="control-group">
+            <span class="control-label">Smoothing</span>
+            <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
+                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.9rem;">
+                    <input type="checkbox" id="smooth-hr" {{ 'checked' if smooth_heartrate else '' }} onchange="updateChart()">
+                    <span>Heart Rate</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.9rem;">
+                    <input type="checkbox" id="smooth-pace" {{ 'checked' if smooth_pace else '' }} onchange="updateChart()">
+                    <span>Pace</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.9rem;">
+                    <input type="checkbox" id="smooth-cadence" {{ 'checked' if smooth_cadence else '' }} onchange="updateChart()">
+                    <span>Cadence</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.9rem;">
+                    <input type="checkbox" id="smooth-power" {{ 'checked' if smooth_power else '' }} onchange="updateChart()">
+                    <span>Power</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.9rem;">
+                    <input type="checkbox" id="smooth-altitude" {{ 'checked' if smooth_altitude else '' }} onchange="updateChart()">
+                    <span>Altitude</span>
+                </label>
+                <div style="display: flex; align-items: center; gap: 8px; margin-left: 10px;">
+                    <span style="font-size: 0.85rem; color: var(--text-muted);">Window:</span>
+                    <input type="number" id="smooth-window" value="{{ smooth_window }}" min="3" max="15" step="2" 
+                           onchange="updateChart()" style="width: 60px; padding: 5px; border-radius: 5px; border: 1px solid var(--dark-medium); background: var(--dark-medium); color: var(--text);">
+                </div>
+            </div>
+        </div>
         
         <div style="flex: 1;"></div>
         
@@ -503,7 +537,25 @@
     function updateChart() {
         const units = document.querySelector('input[name="units"]:checked').value;
         const timezone = document.getElementById('timezone-select').value;
-        window.location.href = `{{ url_for('activity_detail', activity_id=activity.id) }}?units=${units}&timezone=${timezone}`;
+        const smoothHr = document.getElementById('smooth-hr').checked;
+        const smoothPace = document.getElementById('smooth-pace').checked;
+        const smoothCadence = document.getElementById('smooth-cadence').checked;
+        const smoothPower = document.getElementById('smooth-power').checked;
+        const smoothAltitude = document.getElementById('smooth-altitude').checked;
+        const smoothWindow = document.getElementById('smooth-window').value;
+        
+        const params = new URLSearchParams({
+            units: units,
+            timezone: timezone,
+            smooth_hr: smoothHr,
+            smooth_pace: smoothPace,
+            smooth_cadence: smoothCadence,
+            smooth_power: smoothPower,
+            smooth_altitude: smoothAltitude,
+            smooth_window: smoothWindow
+        });
+        
+        window.location.href = `{{ url_for('activity_detail', activity_id=activity.id) }}?${params.toString()}`;
     }
 </script>
 {% endblock %}

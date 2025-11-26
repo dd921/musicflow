@@ -333,6 +333,28 @@ def activity_detail(activity_id):
         if not plotter:
             plotter = WorkoutPlotter()
         
+        # Get unit and timezone preferences from request or session
+        units = request.args.get('units', session.get('units', 'metric'))
+        timezone = request.args.get('timezone', session.get('timezone', 'UTC'))
+        
+        # Get smoothing preferences from request or session
+        smooth_heartrate = request.args.get('smooth_hr', session.get('smooth_hr', 'false')).lower() == 'true'
+        smooth_pace = request.args.get('smooth_pace', session.get('smooth_pace', 'false')).lower() == 'true'
+        smooth_cadence = request.args.get('smooth_cadence', session.get('smooth_cadence', 'false')).lower() == 'true'
+        smooth_power = request.args.get('smooth_power', session.get('smooth_power', 'false')).lower() == 'true'
+        smooth_altitude = request.args.get('smooth_altitude', session.get('smooth_altitude', 'false')).lower() == 'true'
+        smooth_window = int(request.args.get('smooth_window', session.get('smooth_window', '5')))
+        
+        # Store preferences in session
+        session['units'] = units
+        session['timezone'] = timezone
+        session['smooth_hr'] = smooth_heartrate
+        session['smooth_pace'] = smooth_pace
+        session['smooth_cadence'] = smooth_cadence
+        session['smooth_power'] = smooth_power
+        session['smooth_altitude'] = smooth_altitude
+        session['smooth_window'] = smooth_window
+        
         # Prepare data
         combined_df, activity, tracks = data_prep.prepare_combined_data(activity_id)
         
@@ -340,13 +362,17 @@ def activity_detail(activity_id):
         if not isinstance(activity, dict):
             raise ValueError(f"Activity data is not in expected format. Got {type(activity)}")
         
-        # Get unit and timezone preferences from request or session
-        units = request.args.get('units', session.get('units', 'metric'))
-        timezone = request.args.get('timezone', session.get('timezone', 'UTC'))
-        
-        # Store preferences in session
-        session['units'] = units
-        session['timezone'] = timezone
+        # Apply smoothing if any metric is enabled
+        if any([smooth_heartrate, smooth_pace, smooth_cadence, smooth_power, smooth_altitude]):
+            combined_df = data_prep.apply_smoothing(
+                combined_df,
+                smooth_heartrate=smooth_heartrate,
+                smooth_pace=smooth_pace,
+                smooth_cadence=smooth_cadence,
+                smooth_power=smooth_power,
+                smooth_altitude=smooth_altitude,
+                window_size=smooth_window
+            )
         
         # Create charts with preferences
         workout_chart = plotter.create_workout_chart(combined_df, activity, tracks, 
@@ -368,6 +394,12 @@ def activity_detail(activity_id):
                              num_tracks=len(tracks),
                              units=units,
                              timezone=timezone,
+                             smooth_heartrate=smooth_heartrate,
+                             smooth_pace=smooth_pace,
+                             smooth_cadence=smooth_cadence,
+                             smooth_power=smooth_power,
+                             smooth_altitude=smooth_altitude,
+                             smooth_window=smooth_window,
                              available_timezones=TimezoneConverter.get_available_timezones())
     except Exception as e:
         import traceback
@@ -377,7 +409,7 @@ def activity_detail(activity_id):
 
 @app.route('/api/activity/<int:activity_id>/chart')
 def api_activity_chart(activity_id):
-    """API endpoint to regenerate chart with different units/timezone."""
+    """API endpoint to regenerate chart with different units/timezone/smoothing."""
     if 'strava_token' not in session or 'spotify_token' not in session:
         return jsonify({'error': 'Not authenticated'}), 401
     
@@ -385,9 +417,23 @@ def api_activity_chart(activity_id):
         units = request.args.get('units', session.get('units', 'metric'))
         timezone = request.args.get('timezone', session.get('timezone', 'UTC'))
         
+        # Get smoothing preferences
+        smooth_heartrate = request.args.get('smooth_hr', session.get('smooth_hr', 'false')).lower() == 'true'
+        smooth_pace = request.args.get('smooth_pace', session.get('smooth_pace', 'false')).lower() == 'true'
+        smooth_cadence = request.args.get('smooth_cadence', session.get('smooth_cadence', 'false')).lower() == 'true'
+        smooth_power = request.args.get('smooth_power', session.get('smooth_power', 'false')).lower() == 'true'
+        smooth_altitude = request.args.get('smooth_altitude', session.get('smooth_altitude', 'false')).lower() == 'true'
+        smooth_window = int(request.args.get('smooth_window', session.get('smooth_window', '5')))
+        
         # Store preferences
         session['units'] = units
         session['timezone'] = timezone
+        session['smooth_hr'] = smooth_heartrate
+        session['smooth_pace'] = smooth_pace
+        session['smooth_cadence'] = smooth_cadence
+        session['smooth_power'] = smooth_power
+        session['smooth_altitude'] = smooth_altitude
+        session['smooth_window'] = smooth_window
         
         global strava_client, spotify_client, data_prep, plotter
         
@@ -404,6 +450,18 @@ def api_activity_chart(activity_id):
             plotter = WorkoutPlotter()
         
         combined_df, activity, tracks = data_prep.prepare_combined_data(activity_id)
+        
+        # Apply smoothing if any metric is enabled
+        if any([smooth_heartrate, smooth_pace, smooth_cadence, smooth_power, smooth_altitude]):
+            combined_df = data_prep.apply_smoothing(
+                combined_df,
+                smooth_heartrate=smooth_heartrate,
+                smooth_pace=smooth_pace,
+                smooth_cadence=smooth_cadence,
+                smooth_power=smooth_power,
+                smooth_altitude=smooth_altitude,
+                window_size=smooth_window
+            )
         
         # Create charts with new preferences
         workout_chart = plotter.create_workout_chart(combined_df, activity, tracks,

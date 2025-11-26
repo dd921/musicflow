@@ -348,6 +348,93 @@ class DataPreparator:
         
         return combined_df, activity, tracks
     
+    def apply_smoothing(self, df: pd.DataFrame, 
+                       smooth_heartrate: bool = False,
+                       smooth_pace: bool = False,
+                       smooth_cadence: bool = False,
+                       smooth_power: bool = False,
+                       smooth_altitude: bool = False,
+                       window_size: int = 5) -> pd.DataFrame:
+        """
+        Apply smoothing to specified metrics using moving average.
+        
+        Args:
+            df: DataFrame with activity metrics
+            smooth_heartrate: Whether to smooth heart rate data
+            smooth_pace: Whether to smooth pace data
+            smooth_cadence: Whether to smooth cadence data
+            smooth_power: Whether to smooth power data
+            smooth_altitude: Whether to smooth altitude data
+            window_size: Size of rolling window for moving average (default: 5)
+        
+        Returns:
+            DataFrame with smoothed metrics (original columns preserved, smoothed versions added)
+        """
+        df = df.copy()
+        
+        # Helper function to apply rolling average smoothing
+        def smooth_series(series, window=window_size):
+            """Apply rolling average smoothing, handling NaN values and edge cases."""
+            if series is None or len(series) == 0:
+                return series
+            
+            # Convert to numeric, replacing any non-numeric values with NaN
+            series_clean = pd.to_numeric(series, errors='coerce')
+            
+            # Use center=True for symmetric smoothing, min_periods=1 to handle edges
+            # This ensures we get smoothed values even at the beginning/end of the series
+            smoothed = series_clean.rolling(window=window, center=True, min_periods=1).mean()
+            
+            # Fill any remaining NaN values with original values (fallback)
+            smoothed = smoothed.fillna(series_clean)
+            
+            return smoothed
+        
+        # Smooth heart rate
+        if smooth_heartrate and 'heartrate' in df.columns:
+            df['heartrate_smooth'] = smooth_series(df['heartrate'], window_size)
+            # Replace original with smoothed, but keep original as backup
+            df['heartrate_original'] = df['heartrate']
+            df['heartrate'] = df['heartrate_smooth']
+        
+        # Smooth pace (both metric and imperial)
+        if smooth_pace:
+            if 'pace_min_per_km' in df.columns:
+                df['pace_min_per_km_smooth'] = smooth_series(df['pace_min_per_km'], window_size)
+                df['pace_min_per_km_original'] = df['pace_min_per_km']
+                df['pace_min_per_km'] = df['pace_min_per_km_smooth']
+            
+            if 'pace_min_per_mile' in df.columns:
+                df['pace_min_per_mile_smooth'] = smooth_series(df['pace_min_per_mile'], window_size)
+                df['pace_min_per_mile_original'] = df['pace_min_per_mile']
+                df['pace_min_per_mile'] = df['pace_min_per_mile_smooth']
+        
+        # Smooth cadence
+        if smooth_cadence and 'cadence' in df.columns:
+            df['cadence_smooth'] = smooth_series(df['cadence'], window_size)
+            df['cadence_original'] = df['cadence']
+            df['cadence'] = df['cadence_smooth']
+        
+        # Smooth power
+        if smooth_power and 'power' in df.columns:
+            df['power_smooth'] = smooth_series(df['power'], window_size)
+            df['power_original'] = df['power']
+            df['power'] = df['power_smooth']
+        
+        # Smooth altitude (both metric and imperial)
+        if smooth_altitude:
+            if 'altitude_m' in df.columns:
+                df['altitude_m_smooth'] = smooth_series(df['altitude_m'], window_size)
+                df['altitude_m_original'] = df['altitude_m']
+                df['altitude_m'] = df['altitude_m_smooth']
+            
+            if 'altitude_ft' in df.columns:
+                df['altitude_ft_smooth'] = smooth_series(df['altitude_ft'], window_size)
+                df['altitude_ft_original'] = df['altitude_ft']
+                df['altitude_ft'] = df['altitude_ft_smooth']
+        
+        return df
+    
     def get_available_activities(self, days_back: int = 30) -> List[Dict]:
         """
         Get list of available activities within API history limits.
