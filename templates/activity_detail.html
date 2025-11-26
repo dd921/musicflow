@@ -2,9 +2,11 @@
 
 {% block title %}{{ activity.name }} - MusicFlow{% endblock %}
 
-{% block extra_styles %}
+{% block head_scripts %}
 <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-<style>
+{% endblock %}
+
+{% block extra_styles %}
     .activity-header {
         display: flex;
         justify-content: space-between;
@@ -243,7 +245,6 @@
     .js-plotly-plot .plotly .modebar {
         background: transparent !important;
     }
-</style>
 {% endblock %}
 
 {% block content %}
