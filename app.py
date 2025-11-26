@@ -228,8 +228,6 @@ def activities():
         if 'spotify_token' in session and activities_list:
             try:
                 global track_storage
-                from datetime import datetime, timedelta
-                import pytz
                 
                 # Get all activity time ranges
                 activity_ranges = []
