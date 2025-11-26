@@ -171,6 +171,7 @@ class DataPreparator:
                                        buffer_minutes: int = 5) -> List[Dict]:
         """
         Get Spotify tracks that were playing during the activity.
+        Ensures timezone alignment between Strava activity and Spotify tracks.
         
         Args:
             activity: Activity details dictionary
@@ -179,9 +180,20 @@ class DataPreparator:
         Returns:
             List of track dictionaries with timing information
         """
-        # Get activity start and end time
+        # Get activity start and end time with proper timezone handling
         start_time_str = activity.get('start_date')
         start_time = datetime.fromisoformat(start_time_str.replace('Z', '+00:00'))
+        
+        # Get activity timezone (Strava provides this)
+        timezone_str = activity.get('timezone', 'UTC')
+        try:
+            activity_tz = pytz.timezone(timezone_str)
+            # Convert UTC start time to activity timezone
+            start_time = start_time.astimezone(activity_tz)
+        except:
+            activity_tz = pytz.UTC
+            if start_time.tzinfo is None:
+                start_time = pytz.UTC.localize(start_time)
         
         elapsed_time = activity.get('elapsed_time', 0)  # seconds
         end_time = start_time + timedelta(seconds=elapsed_time)
@@ -211,31 +223,36 @@ class DataPreparator:
                 all_tracks[key] = track
         
         # Filter tracks that overlap with activity time
+        # Convert all track timestamps to activity timezone for proper comparison
         relevant_tracks = []
         for track in all_tracks.values():
             track_time = track['played_at_timestamp']
             
-            # Make track_time timezone-aware if needed
+            # Make track_time timezone-aware if needed (Spotify returns UTC)
             if track_time.tzinfo is None:
                 track_time = pytz.UTC.localize(track_time)
             
-            # Check if track was playing during activity
-            track_end = track_time + timedelta(milliseconds=track['duration_ms'])
+            # Convert track time to activity timezone for proper comparison
+            track_time_in_activity_tz = track_time.astimezone(activity_tz)
+            track_end_in_activity_tz = track_time_in_activity_tz + timedelta(milliseconds=track['duration_ms'])
             
-            # Track overlaps if it started before activity ended and ended after activity started
-            if track_time <= search_end and track_end >= search_start:
+            # Check if track was playing during activity (all in same timezone now)
+            if track_time_in_activity_tz <= search_end and track_end_in_activity_tz >= search_start:
                 # Calculate overlap
-                overlap_start = max(track_time, search_start)
-                overlap_end = min(track_end, search_end)
+                overlap_start = max(track_time_in_activity_tz, search_start)
+                overlap_end = min(track_end_in_activity_tz, search_end)
                 
+                # Store times in activity timezone for consistency
                 track['overlap_start'] = overlap_start
                 track['overlap_end'] = overlap_end
                 track['overlap_duration_seconds'] = (overlap_end - overlap_start).total_seconds()
+                # Also store the track time in activity timezone for alignment
+                track['played_at_timestamp_activity_tz'] = track_time_in_activity_tz
                 
                 relevant_tracks.append(track)
         
         # Sort by played_at time
-        relevant_tracks.sort(key=lambda x: x['played_at_timestamp'])
+        relevant_tracks.sort(key=lambda x: x.get('played_at_timestamp_activity_tz', x['played_at_timestamp']))
         
         return relevant_tracks
     
@@ -260,14 +277,22 @@ class DataPreparator:
         df['album'] = None
         
         # For each timestamp in activity, find which track was playing
+        # Both timestamps should be in the same timezone (activity timezone)
         for idx, row in df.iterrows():
-            timestamp = row['timestamp']
+            timestamp = row['timestamp']  # Already in activity timezone
             
             # Find track that was playing at this timestamp
             for track in tracks:
-                track_start = track['played_at_timestamp']
-                if track_start.tzinfo is None:
-                    track_start = pytz.UTC.localize(track_start)
+                # Use activity timezone version if available, otherwise convert
+                if 'played_at_timestamp_activity_tz' in track:
+                    track_start = track['played_at_timestamp_activity_tz']
+                else:
+                    track_start = track['played_at_timestamp']
+                    if track_start.tzinfo is None:
+                        track_start = pytz.UTC.localize(track_start)
+                    # Convert to activity timezone
+                    activity_tz = timestamp.tzinfo if timestamp.tzinfo else pytz.UTC
+                    track_start = track_start.astimezone(activity_tz)
                 
                 track_end = track_start + timedelta(milliseconds=track['duration_ms'])
                 

@@ -49,3 +49,7 @@ instance/
 *.sqlite
 *.sqlite3
 
+# Cache files
+.cache
+.cache/
+
