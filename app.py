@@ -223,28 +223,79 @@ def activities():
         )
         
         # Get track counts for each activity if Spotify is connected
+        # Optimized: Use a single batch query instead of per-activity queries
         activity_track_counts = {}
-        if 'spotify_token' in session:
+        if 'spotify_token' in session and activities_list:
             try:
-                global spotify_client, data_prep
-                if not spotify_client:
-                    spotify_client = SpotifyClient(
-                        access_token=session['spotify_token'],
-                        refresh_token=session.get('spotify_refresh_token')
-                    )
-                if not data_prep:
-                    data_prep = DataPreparator(strava_client, spotify_client, track_storage)
+                global track_storage
+                from datetime import datetime, timedelta
+                import pytz
                 
-                # Get track counts for each activity (with error handling)
+                # Get all activity time ranges
+                activity_ranges = []
                 for activity in activities_list:
                     try:
-                        tracks = data_prep.get_spotify_tracks_for_activity(activity, buffer_minutes=5)
-                        activity_track_counts[activity['id']] = len(tracks)
-                    except Exception as e:
-                        # If we can't get tracks for an activity, set count to 0
-                        activity_track_counts[activity['id']] = 0
+                        start_time_str = activity.get('start_date')
+                        if not start_time_str:
+                            continue
+                        start_time = datetime.fromisoformat(start_time_str.replace('Z', '+00:00'))
+                        elapsed_time = activity.get('elapsed_time', 0)
+                        end_time = start_time + timedelta(seconds=elapsed_time)
+                        
+                        # Get activity timezone
+                        timezone_str = activity.get('timezone', 'UTC')
+                        try:
+                            activity_tz = pytz.timezone(timezone_str)
+                        except:
+                            activity_tz = pytz.UTC
+                        
+                        start_time_local = start_time.astimezone(activity_tz)
+                        end_time_local = end_time.astimezone(activity_tz)
+                        
+                        # Add buffer
+                        search_start = start_time_local - timedelta(minutes=5)
+                        search_end = end_time_local + timedelta(minutes=5)
+                        
+                        activity_ranges.append({
+                            'id': activity['id'],
+                            'start': search_start,
+                            'end': search_end
+                        })
+                    except Exception:
+                        continue
+                
+                # Batch query: get all tracks that might match any activity
+                if activity_ranges:
+                    # Get earliest start and latest end
+                    all_starts = [r['start'] for r in activity_ranges]
+                    all_ends = [r['end'] for r in activity_ranges]
+                    overall_start = min(all_starts)
+                    overall_end = max(all_ends)
+                    
+                    # Get all tracks in the overall time range (single DB query)
+                    all_tracks = track_storage.get_tracks_in_range(overall_start, overall_end)
+                    
+                    # Pre-process tracks: convert to dict keyed by track_id for faster lookup
+                    # Count tracks for each activity (optimized overlap check)
+                    for activity_range in activity_ranges:
+                        count = 0
+                        for track in all_tracks:
+                            track_start = track['played_at_timestamp']
+                            if track_start.tzinfo is None:
+                                track_start = pytz.UTC.localize(track_start)
+                            
+                            # Convert to activity timezone once
+                            track_start_local = track_start.astimezone(activity_range['start'].tzinfo)
+                            track_end_local = track_start_local + timedelta(milliseconds=track.get('duration_ms', 0))
+                            
+                            # Simple overlap check
+                            if track_start_local < activity_range['end'] and track_end_local > activity_range['start']:
+                                count += 1
+                        
+                        activity_track_counts[activity_range['id']] = count
             except Exception as e:
-                # If data_prep fails, all activities get 0 tracks
+                # If anything fails, all activities get 0 tracks
+                print(f"Error getting track counts: {e}")
                 pass
         
         from units import TimezoneConverter

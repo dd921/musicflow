@@ -380,21 +380,26 @@ class WorkoutPlotter:
             
             color = track_color_map[track_id]
             
-            # Add shading to all subplots
+            # Add shading to all subplots using domain coordinates
+            # This ensures shading doesn't affect y-axis scaling
             for row in range(1, num_subplots + 1):
-                # Get y-axis range for this subplot
-                yaxis_key = f"yaxis{row if row > 1 else ''}"
+                # Use domain coordinates (0-1) for y to cover full subplot height
+                # xref uses the subplot's x-axis, yref uses domain
+                xref_str = f"x{row if row > 1 else ''}"
+                yref_str = f"y{row if row > 1 else ''} domain"
                 
                 fig.add_shape(
                     type="rect",
                     x0=period['start_x'],
                     x1=period['end_x'],
-                    y0=-1e6,  # Very large negative number to cover full range
-                    y1=1e6,   # Very large positive number to cover full range
+                    y0=0,
+                    y1=1,
+                    xref=xref_str,
+                    yref=yref_str,
                     fillcolor=color,
                     line=dict(width=0),
                     layer="below",
-                    opacity=0.2,
+                    opacity=0.08,
                     row=row, col=1
                 )
     
