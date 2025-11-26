@@ -399,7 +399,7 @@ class WorkoutPlotter:
                     fillcolor=color,
                     line=dict(width=0),
                     layer="below",
-                    opacity=0.08,
+                    opacity=0.2,
                     row=row, col=1
                 )
     
