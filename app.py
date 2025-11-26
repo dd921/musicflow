@@ -215,6 +215,13 @@ def activities():
             after=datetime.now() - timedelta(days=30)
         )
         
+        # Sort activities newest to oldest
+        activities_list = sorted(
+            activities_list, 
+            key=lambda x: x.get('start_date', ''), 
+            reverse=True
+        )
+        
         from units import TimezoneConverter
         
         return render_template('activities.html', 
