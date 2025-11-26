@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,19 +12,75 @@
             --primary-dark: #E85A2A;
             --secondary: #1DB954;
             --accent: #FF3366;
+            --gradient-1: linear-gradient(135deg, #FF6B35 0%, #FF3366 100%);
+            --gradient-2: linear-gradient(135deg, #1DB954 0%, #00D4AA 100%);
+            --gradient-3: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            --sidebar-width: 280px;
+        }
+
+        /* Dark theme (default) */
+        :root {
             --dark: #0D0D0D;
             --dark-light: #1A1A1A;
             --dark-medium: #2D2D2D;
             --text: #FFFFFF;
             --text-muted: #A0A0A0;
             --text-dim: #666666;
-            --gradient-1: linear-gradient(135deg, #FF6B35 0%, #FF3366 100%);
-            --gradient-2: linear-gradient(135deg, #1DB954 0%, #00D4AA 100%);
-            --gradient-3: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             --shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
             --shadow-glow: 0 0 30px rgba(255, 107, 53, 0.3);
-            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            --sidebar-width: 280px;
+        }
+
+        /* Light theme */
+        [data-theme="light"] {
+            --dark: #FFFFFF;
+            --dark-light: #F5F5F5;
+            --dark-medium: #E0E0E0;
+            --text: #1A1A1A;
+            --text-muted: #666666;
+            --text-dim: #999999;
+            --shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            --shadow-glow: 0 0 30px rgba(255, 107, 53, 0.2);
+        }
+
+        [data-theme="light"] body {
+            background: #F8F9FA;
+        }
+
+        [data-theme="light"] .bg-gradient {
+            background: 
+                radial-gradient(ellipse at 20% 20%, rgba(255, 107, 53, 0.05) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(29, 185, 84, 0.03) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 50%, rgba(255, 51, 102, 0.02) 0%, transparent 70%);
+        }
+
+        [data-theme="light"] .sidebar {
+            border-right-color: #E0E0E0;
+        }
+
+        [data-theme="light"] .card,
+        [data-theme="light"] .chart-card,
+        [data-theme="light"] .tracks-card {
+            border-color: #E0E0E0;
+        }
+
+        [data-theme="light"] .card:hover,
+        [data-theme="light"] .chart-card:hover,
+        [data-theme="light"] .tracks-card:hover {
+            border-color: rgba(255, 107, 53, 0.3);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+        }
+
+        [data-theme="light"] .status-box.success {
+            background: rgba(29, 185, 84, 0.1);
+            border-color: rgba(29, 185, 84, 0.3);
+            color: #155724;
+        }
+
+        [data-theme="light"] .status-box.error {
+            background: rgba(255, 51, 102, 0.1);
+            border-color: rgba(255, 51, 102, 0.3);
+            color: #721c24;
         }
 
         * {
@@ -230,10 +286,6 @@
         .page-header {
             padding: 40px 50px 30px;
             background: linear-gradient(180deg, var(--dark-light) 0%, transparent 100%);
-            position: sticky;
-            top: 0;
-            z-index: 50;
-            backdrop-filter: blur(10px);
         }
 
         .page-title {
@@ -592,6 +644,10 @@
             
             <div class="nav-section">
                 <div class="nav-section-title">Settings</div>
+                <a href="#" class="nav-link" onclick="toggleTheme(); return false;" id="theme-toggle">
+                    <span class="nav-link-icon" id="theme-icon">🌙</span>
+                    <span id="theme-text">Dark Mode</span>
+                </a>
                 <a href="{{ url_for('logout') }}" class="nav-link">
                     <span class="nav-link-icon">🚪</span>
                     <span>Logout</span>
@@ -647,6 +703,43 @@
             statusDiv.className = 'status-box ' + (isError ? 'error' : 'success');
             statusDiv.innerHTML = message;
         }
+        
+        // Theme management
+        function getTheme() {
+            return localStorage.getItem('theme') || 'dark';
+        }
+        
+        function setTheme(theme) {
+            localStorage.setItem('theme', theme);
+            document.documentElement.setAttribute('data-theme', theme);
+            updateThemeIcon(theme);
+        }
+        
+        function updateThemeIcon(theme) {
+            const icon = document.getElementById('theme-icon');
+            const text = document.getElementById('theme-text');
+            if (icon && text) {
+                if (theme === 'light') {
+                    icon.textContent = '☀️';
+                    text.textContent = 'Light Mode';
+                } else {
+                    icon.textContent = '🌙';
+                    text.textContent = 'Dark Mode';
+                }
+            }
+        }
+        
+        function toggleTheme() {
+            const currentTheme = getTheme();
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            setTheme(newTheme);
+        }
+        
+        // Initialize theme on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            const theme = getTheme();
+            setTheme(theme);
+        });
     </script>
     
     {% block extra_scripts %}{% endblock %}
