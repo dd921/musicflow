@@ -6,15 +6,15 @@ import time
 from datetime import datetime
 from typing import Dict, Optional
 import config
-from database import get_db_connection
+from database import get_db_connection, get_cursor, placeholder, USE_POSTGRES
 
 
 class TokenManager:
     """Manages OAuth tokens with automatic refresh."""
 
-    def __init__(self, db_path: Optional[str] = None):
+    def __init__(self):
         """Initialize token manager."""
-        self.db_path = db_path or config.DATABASE_PATH
+        pass
 
     def get_token(self, user_id: int, provider: str) -> Optional[Dict]:
         """
@@ -27,28 +27,40 @@ class TokenManager:
         Returns:
             Token dictionary or None if not found
         """
-        conn = get_db_connection(self.db_path)
-        cursor = conn.cursor()
+        conn = get_db_connection()
+        cursor = get_cursor(conn)
 
-        cursor.execute('''
+        p = placeholder()
+        cursor.execute(f'''
             SELECT access_token, refresh_token, expires_at, scope, updated_at
             FROM oauth_tokens
-            WHERE user_id = ? AND provider = ?
+            WHERE user_id = {p} AND provider = {p}
         ''', (user_id, provider))
 
         row = cursor.fetchone()
+        cursor.close()
         conn.close()
 
         if not row:
             return None
 
-        return {
-            'access_token': row['access_token'],
-            'refresh_token': row['refresh_token'],
-            'expires_at': row['expires_at'],
-            'scope': row['scope'],
-            'updated_at': row['updated_at']
-        }
+        # Handle both dict-like (psycopg2) and tuple-like (sqlite3) rows
+        if USE_POSTGRES:
+            return {
+                'access_token': row['access_token'],
+                'refresh_token': row['refresh_token'],
+                'expires_at': row['expires_at'],
+                'scope': row['scope'],
+                'updated_at': row['updated_at']
+            }
+        else:
+            return {
+                'access_token': row['access_token'],
+                'refresh_token': row['refresh_token'],
+                'expires_at': row['expires_at'],
+                'scope': row['scope'],
+                'updated_at': row['updated_at']
+            }
 
     def get_valid_token(self, user_id: int, provider: str) -> Optional[Dict]:
         """
@@ -93,10 +105,11 @@ class TokenManager:
             provider: 'strava' or 'spotify'
             token_data: Token data from OAuth flow
         """
-        conn = get_db_connection(self.db_path)
-        cursor = conn.cursor()
+        conn = get_db_connection()
+        cursor = get_cursor(conn)
 
         now = datetime.now().isoformat()
+        p = placeholder()
 
         # Extract token fields
         access_token = token_data.get('access_token')
@@ -108,19 +121,33 @@ class TokenManager:
         if not expires_at and 'expires_in' in token_data:
             expires_at = int(time.time()) + token_data['expires_in']
 
-        # Upsert token
-        cursor.execute('''
-            INSERT INTO oauth_tokens (user_id, provider, access_token, refresh_token, expires_at, scope, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(user_id, provider) DO UPDATE SET
-                access_token = excluded.access_token,
-                refresh_token = COALESCE(excluded.refresh_token, oauth_tokens.refresh_token),
-                expires_at = excluded.expires_at,
-                scope = excluded.scope,
-                updated_at = excluded.updated_at
-        ''', (user_id, provider, access_token, refresh_token, expires_at, scope, now))
+        if USE_POSTGRES:
+            # PostgreSQL upsert
+            cursor.execute(f'''
+                INSERT INTO oauth_tokens (user_id, provider, access_token, refresh_token, expires_at, scope, updated_at)
+                VALUES ({p}, {p}, {p}, {p}, {p}, {p}, {p})
+                ON CONFLICT(user_id, provider) DO UPDATE SET
+                    access_token = EXCLUDED.access_token,
+                    refresh_token = COALESCE(EXCLUDED.refresh_token, oauth_tokens.refresh_token),
+                    expires_at = EXCLUDED.expires_at,
+                    scope = EXCLUDED.scope,
+                    updated_at = EXCLUDED.updated_at
+            ''', (user_id, provider, access_token, refresh_token, expires_at, scope, now))
+        else:
+            # SQLite upsert
+            cursor.execute(f'''
+                INSERT INTO oauth_tokens (user_id, provider, access_token, refresh_token, expires_at, scope, updated_at)
+                VALUES ({p}, {p}, {p}, {p}, {p}, {p}, {p})
+                ON CONFLICT(user_id, provider) DO UPDATE SET
+                    access_token = excluded.access_token,
+                    refresh_token = COALESCE(excluded.refresh_token, oauth_tokens.refresh_token),
+                    expires_at = excluded.expires_at,
+                    scope = excluded.scope,
+                    updated_at = excluded.updated_at
+            ''', (user_id, provider, access_token, refresh_token, expires_at, scope, now))
 
         conn.commit()
+        cursor.close()
         conn.close()
 
     def delete_token(self, user_id: int, provider: str):
@@ -131,14 +158,16 @@ class TokenManager:
             user_id: The user's ID
             provider: 'strava' or 'spotify'
         """
-        conn = get_db_connection(self.db_path)
-        cursor = conn.cursor()
+        conn = get_db_connection()
+        cursor = get_cursor(conn)
 
-        cursor.execute('''
-            DELETE FROM oauth_tokens WHERE user_id = ? AND provider = ?
+        p = placeholder()
+        cursor.execute(f'''
+            DELETE FROM oauth_tokens WHERE user_id = {p} AND provider = {p}
         ''', (user_id, provider))
 
         conn.commit()
+        cursor.close()
         conn.close()
 
     def delete_all_tokens(self, user_id: int):
@@ -148,14 +177,16 @@ class TokenManager:
         Args:
             user_id: The user's ID
         """
-        conn = get_db_connection(self.db_path)
-        cursor = conn.cursor()
+        conn = get_db_connection()
+        cursor = get_cursor(conn)
 
-        cursor.execute('''
-            DELETE FROM oauth_tokens WHERE user_id = ?
+        p = placeholder()
+        cursor.execute(f'''
+            DELETE FROM oauth_tokens WHERE user_id = {p}
         ''', (user_id,))
 
         conn.commit()
+        cursor.close()
         conn.close()
 
     def _refresh_token(self, user_id: int, provider: str, token: Dict) -> Optional[Dict]:

@@ -32,7 +32,10 @@ if IS_PRODUCTION and SECRET_KEY == 'dev-secret-key-change-in-production':
     raise ValueError("SECRET_KEY must be set to a secure value in production!")
 
 # Database Configuration
-DATABASE_PATH = os.getenv('DATABASE_PATH', 'musicflow.db')
+# For PostgreSQL (Supabase): postgresql://user:password@host:port/database
+# For SQLite (local dev): sqlite:///musicflow.db or just leave empty
+DATABASE_URL = os.getenv('DATABASE_URL', '')
+DATABASE_PATH = os.getenv('DATABASE_PATH', 'musicflow.db')  # Fallback for SQLite
 
 # API Rate Limits (requests per 15 minutes)
 STRAVA_RATE_LIMIT = 600  # Strava allows 600 requests per 15 minutes

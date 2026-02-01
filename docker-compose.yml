@@ -18,10 +18,11 @@ services:
       - STRAVA_CLIENT_SECRET=${STRAVA_CLIENT_SECRET:?STRAVA_CLIENT_SECRET is required}
       - SPOTIFY_CLIENT_ID=${SPOTIFY_CLIENT_ID:?SPOTIFY_CLIENT_ID is required}
       - SPOTIFY_CLIENT_SECRET=${SPOTIFY_CLIENT_SECRET:?SPOTIFY_CLIENT_SECRET is required}
-      # Database path inside container (mapped to volume)
-      - DATABASE_PATH=/data/musicflow.db
+      # Database: Use Supabase PostgreSQL (recommended) or leave empty for SQLite
+      - DATABASE_URL=${DATABASE_URL:-}
+      - DATABASE_PATH=${DATABASE_PATH:-/data/musicflow.db}
     volumes:
-      # Persistent storage for database
+      # Only needed if using SQLite (DATABASE_URL is empty)
       - musicflow-data:/data
     restart: unless-stopped
     healthcheck:
@@ -41,7 +42,7 @@ volumes:
 #
 # 1. Copy .env.example to .env and fill in your values:
 #    cp .env.example .env
-#    # Edit .env with your API credentials and settings
+#    # Edit .env with your API credentials and Supabase DATABASE_URL
 #
 # 2. Build and start:
 #    docker-compose up -d --build
@@ -52,17 +53,15 @@ volumes:
 # 4. Stop:
 #    docker-compose down
 #
-# 5. Stop and remove data (WARNING: deletes database):
-#    docker-compose down -v
-#
 # ===========================================
-# PRODUCTION NOTES
+# DATABASE OPTIONS
 # ===========================================
 #
-# For production deployment:
-# 1. Set FLASK_ENV=production
-# 2. Generate a secure SECRET_KEY:
-#    python -c "import secrets; print(secrets.token_hex(32))"
-# 3. Set BASE_URL to your public URL
-# 4. Consider adding a reverse proxy (nginx/traefik) for SSL
-# 5. Update Strava/Spotify dashboards with production callback URLs
+# Option 1: Supabase PostgreSQL (Recommended)
+#   - Create project at https://supabase.com
+#   - Get connection string from Settings > Database
+#   - Set DATABASE_URL in .env
+#
+# Option 2: SQLite (local dev only)
+#   - Leave DATABASE_URL empty
+#   - Data stored in musicflow-data volume
