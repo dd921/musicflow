@@ -15,7 +15,7 @@ STRAVA_REDIRECT_URI=http://localhost:5500/strava/callback
 # Get these from https://developer.spotify.com/dashboard
 SPOTIFY_CLIENT_ID=your_spotify_client_id
 SPOTIFY_CLIENT_SECRET=your_spotify_client_secret
-SPOTIFY_REDIRECT_URI=http://localhost:5500/spotify/callback
+SPOTIFY_REDIRECT_URI=http://127.0.0.1:5500/spotify/callback
 
 # Flask Configuration
 SECRET_KEY=your-secret-key-here-change-in-production
@@ -34,9 +34,10 @@ FLASK_ENV=development
 ### Spotify
 1. Go to https://developer.spotify.com/dashboard
 2. Create a new app (or edit existing one)
-3. **IMPORTANT**: Add `http://localhost:5500/spotify/callback` to Redirect URIs
+3. **IMPORTANT**: Add `http://127.0.0.1:5500/spotify/callback` to Redirect URIs
    - Click "Edit Settings" on your app
-   - Under "Redirect URIs", add: `http://localhost:5500/spotify/callback`
+   - Under "Redirect URIs", add: `http://127.0.0.1:5500/spotify/callback`
+   - **Note**: Spotify no longer allows `localhost` - you must use `127.0.0.1` instead
    - Make sure to save the changes
 4. Copy the Client ID and Client Secret
 

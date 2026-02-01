@@ -64,8 +64,29 @@ class SpotifyClient:
             scope="user-read-recently-played user-read-playback-state user-read-currently-playing",
             cache_path=None
         )
-        
+
         token_info = sp_oauth.get_access_token(code)
+        return token_info
+
+    def refresh_token(self, refresh_token: str) -> Dict:
+        """
+        Refresh an expired access token using a refresh token.
+
+        Args:
+            refresh_token: The refresh token from previous authentication
+
+        Returns:
+            New token data including access_token and possibly new refresh_token
+        """
+        sp_oauth = SpotifyOAuth(
+            client_id=config.SPOTIFY_CLIENT_ID,
+            client_secret=config.SPOTIFY_CLIENT_SECRET,
+            redirect_uri=config.SPOTIFY_REDIRECT_URI,
+            scope="user-read-recently-played user-read-playback-state user-read-currently-playing",
+            cache_path=None
+        )
+
+        token_info = sp_oauth.refresh_access_token(refresh_token)
         return token_info
     
     def get_recently_played(self, limit: int = 50, 
