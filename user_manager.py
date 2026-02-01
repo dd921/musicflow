@@ -5,8 +5,7 @@ Handles user registration, authentication, and validation.
 import bcrypt
 from datetime import datetime
 from typing import Dict, Optional, Tuple
-import config
-from database import get_db_connection
+from database import get_db_connection, get_cursor, placeholder, USE_POSTGRES
 
 
 class UserManager:
@@ -16,9 +15,9 @@ class UserManager:
     MIN_USERNAME_LENGTH = 3
     MAX_USERNAME_LENGTH = 32
 
-    def __init__(self, db_path: Optional[str] = None):
+    def __init__(self):
         """Initialize user manager."""
-        self.db_path = db_path or config.DATABASE_PATH
+        pass
 
     def create_user(self, username: str, password: str) -> Tuple[bool, str, Optional[int]]:
         """
@@ -40,7 +39,7 @@ class UserManager:
         if len(username) > self.MAX_USERNAME_LENGTH:
             return False, f"Username must be at most {self.MAX_USERNAME_LENGTH} characters", None
 
-        if not username.isalnum() and '_' not in username:
+        if not username.replace('_', '').isalnum():
             return False, "Username can only contain letters, numbers, and underscores", None
 
         # Validate password
@@ -55,22 +54,33 @@ class UserManager:
         password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
 
         # Create user
-        conn = get_db_connection(self.db_path)
-        cursor = conn.cursor()
+        conn = get_db_connection()
+        cursor = get_cursor(conn)
 
         try:
-            cursor.execute('''
-                INSERT INTO users (username, password_hash, created_at)
-                VALUES (?, ?, ?)
-            ''', (username, password_hash.decode('utf-8'), datetime.now().isoformat()))
+            p = placeholder()
+            if USE_POSTGRES:
+                cursor.execute(f'''
+                    INSERT INTO users (username, password_hash, created_at)
+                    VALUES ({p}, {p}, {p})
+                    RETURNING id
+                ''', (username, password_hash.decode('utf-8'), datetime.now().isoformat()))
+                user_id = cursor.fetchone()['id']
+            else:
+                cursor.execute(f'''
+                    INSERT INTO users (username, password_hash, created_at)
+                    VALUES ({p}, {p}, {p})
+                ''', (username, password_hash.decode('utf-8'), datetime.now().isoformat()))
+                user_id = cursor.lastrowid
 
-            user_id = cursor.lastrowid
             conn.commit()
+            cursor.close()
             conn.close()
 
             return True, "Account created successfully", user_id
 
         except Exception as e:
+            cursor.close()
             conn.close()
             return False, f"Error creating account: {str(e)}", None
 
@@ -112,15 +122,17 @@ class UserManager:
         Returns:
             User dictionary or None
         """
-        conn = get_db_connection(self.db_path)
-        cursor = conn.cursor()
+        conn = get_db_connection()
+        cursor = get_cursor(conn)
 
-        cursor.execute('''
+        p = placeholder()
+        cursor.execute(f'''
             SELECT id, username, password_hash, created_at
-            FROM users WHERE username = ?
+            FROM users WHERE username = {p}
         ''', (username.strip().lower(),))
 
         row = cursor.fetchone()
+        cursor.close()
         conn.close()
 
         if not row:
@@ -143,15 +155,17 @@ class UserManager:
         Returns:
             User dictionary (without password_hash) or None
         """
-        conn = get_db_connection(self.db_path)
-        cursor = conn.cursor()
+        conn = get_db_connection()
+        cursor = get_cursor(conn)
 
-        cursor.execute('''
+        p = placeholder()
+        cursor.execute(f'''
             SELECT id, username, created_at
-            FROM users WHERE id = ?
+            FROM users WHERE id = {p}
         ''', (user_id,))
 
         row = cursor.fetchone()
+        cursor.close()
         conn.close()
 
         if not row:
@@ -175,38 +189,42 @@ class UserManager:
         Returns:
             Tuple of (success, message)
         """
-        # Get user
-        conn = get_db_connection(self.db_path)
-        cursor = conn.cursor()
+        conn = get_db_connection()
+        cursor = get_cursor(conn)
 
-        cursor.execute('''
-            SELECT password_hash FROM users WHERE id = ?
+        p = placeholder()
+        cursor.execute(f'''
+            SELECT password_hash FROM users WHERE id = {p}
         ''', (user_id,))
 
         row = cursor.fetchone()
 
         if not row:
+            cursor.close()
             conn.close()
             return False, "User not found"
 
         # Verify old password
         if not bcrypt.checkpw(old_password.encode('utf-8'), row['password_hash'].encode('utf-8')):
+            cursor.close()
             conn.close()
             return False, "Current password is incorrect"
 
         # Validate new password
         if len(new_password) < self.MIN_PASSWORD_LENGTH:
+            cursor.close()
             conn.close()
             return False, f"New password must be at least {self.MIN_PASSWORD_LENGTH} characters"
 
         # Hash and store new password
         new_hash = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt())
 
-        cursor.execute('''
-            UPDATE users SET password_hash = ? WHERE id = ?
+        cursor.execute(f'''
+            UPDATE users SET password_hash = {p} WHERE id = {p}
         ''', (new_hash.decode('utf-8'), user_id))
 
         conn.commit()
+        cursor.close()
         conn.close()
 
         return True, "Password changed successfully"
@@ -221,28 +239,32 @@ class UserManager:
         Returns:
             Tuple of (success, message)
         """
-        conn = get_db_connection(self.db_path)
-        cursor = conn.cursor()
+        conn = get_db_connection()
+        cursor = get_cursor(conn)
 
         try:
+            p = placeholder()
             # Delete user's tokens
-            cursor.execute('DELETE FROM oauth_tokens WHERE user_id = ?', (user_id,))
+            cursor.execute(f'DELETE FROM oauth_tokens WHERE user_id = {p}', (user_id,))
 
             # Delete user's tracks
-            cursor.execute('DELETE FROM tracks WHERE user_id = ?', (user_id,))
+            cursor.execute(f'DELETE FROM tracks WHERE user_id = {p}', (user_id,))
 
             # Delete user
-            cursor.execute('DELETE FROM users WHERE id = ?', (user_id,))
+            cursor.execute(f'DELETE FROM users WHERE id = {p}', (user_id,))
 
             if cursor.rowcount == 0:
+                cursor.close()
                 conn.close()
                 return False, "User not found"
 
             conn.commit()
+            cursor.close()
             conn.close()
             return True, "User deleted successfully"
 
         except Exception as e:
+            cursor.close()
             conn.close()
             return False, f"Error deleting user: {str(e)}"
 
@@ -253,14 +275,15 @@ class UserManager:
         Returns:
             List of user dictionaries (without password hashes)
         """
-        conn = get_db_connection(self.db_path)
-        cursor = conn.cursor()
+        conn = get_db_connection()
+        cursor = get_cursor(conn)
 
         cursor.execute('''
             SELECT id, username, created_at FROM users ORDER BY created_at DESC
         ''')
 
         rows = cursor.fetchall()
+        cursor.close()
         conn.close()
 
         return [{
