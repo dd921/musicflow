@@ -659,8 +659,8 @@
             <div class="user-info">
                 <div class="user-avatar">👤</div>
                 <div class="user-details">
-                    <div class="user-name">Athlete</div>
-                    <div class="user-status">● Connected</div>
+                    <div class="user-name">{{ current_user.username if current_user else 'Guest' }}</div>
+                    <div class="user-status">{% if strava_auth and spotify_auth %}● Connected{% elif strava_auth or spotify_auth %}● Partial{% else %}○ Not Connected{% endif %}</div>
                 </div>
             </div>
         </div>

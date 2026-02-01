@@ -10,7 +10,10 @@ A Python web application that combines Strava workout data with Spotify listenin
 - **Deduplication**: Automatically prevents duplicate tracks from being stored
 - **Interactive Charts**: Beautiful, interactive visualizations powered by Plotly
 - **Time Alignment**: Properly handles timestamps and timezones to accurately match music with workout segments
-- **API Limitations Handling**: Accounts for Strava and Spotify API history limitations
+- **Unit & Timezone Controls**: Toggle between metric/imperial units and convert to different timezones
+- **Data Smoothing**: Apply smoothing to metrics (Heart Rate, Pace, Cadence, Power, Altitude)
+- **Multi-User Support**: Data isolation for multiple users
+- **Modern UI**: Dark/light theme with sidebar navigation
 
 ## Prerequisites
 
@@ -18,35 +21,145 @@ A Python web application that combines Strava workout data with Spotify listenin
 - Strava API credentials ([Get them here](https://www.strava.com/settings/api))
 - Spotify API credentials ([Get them here](https://developer.spotify.com/dashboard))
 
-## Installation
+## Quick Start
 
-1. Clone or download this repository
+### 1. Clone the Repository
 
-2. Install dependencies:
 ```bash
+git clone <repository-url>
+cd musicflow
+```
+
+### 2. Set Up Python Environment
+
+**Option A: Using Conda (Recommended)**
+
+```bash
+conda create -n musicflow python=3.11 -y
+conda activate musicflow
 pip install -r requirements.txt
 ```
 
-3. Set up environment variables:
-   - Copy `.env.example` to `.env`
-   - Fill in your API credentials:
-     - `STRAVA_CLIENT_ID` and `STRAVA_CLIENT_SECRET`
-     - `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET`
-     - `SECRET_KEY` (for Flask sessions)
+**Option B: Using venv**
 
-4. Run the application:
+```bash
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+### 3. Get API Credentials
+
+#### Strava API Setup
+
+1. Go to [https://www.strava.com/settings/api](https://www.strava.com/settings/api)
+2. Create a new application (or edit existing one)
+3. **IMPORTANT**: Set the Authorization Callback Domain to `localhost:5500`
+   - The full redirect URI should be: `http://localhost:5500/strava/callback`
+4. Copy the **Client ID** and **Client Secret**
+
+#### Spotify API Setup
+
+1. Go to [https://developer.spotify.com/dashboard](https://developer.spotify.com/dashboard)
+2. Create a new app (or edit existing one)
+3. **IMPORTANT**: Add the redirect URI to your app settings:
+   - Click "Edit Settings" on your app
+   - Under "Redirect URIs", add: `http://127.0.0.1:5500/spotify/callback`
+   - **Note**: Spotify no longer allows `localhost` - you must use `127.0.0.1` instead
+   - Make sure to save the changes
+4. Copy the **Client ID** and **Client Secret**
+
+### 4. Configure Environment Variables
+
+Create a `.env` file in the project root:
+
+```bash
+# On macOS/Linux
+cat > .env << 'EOF'
+# Strava API Credentials
+STRAVA_CLIENT_ID=your_strava_client_id
+STRAVA_CLIENT_SECRET=your_strava_client_secret
+STRAVA_REDIRECT_URI=http://localhost:5500/strava/callback
+
+# Spotify API Credentials
+SPOTIFY_CLIENT_ID=your_spotify_client_id
+SPOTIFY_CLIENT_SECRET=your_spotify_client_secret
+SPOTIFY_REDIRECT_URI=http://127.0.0.1:5500/spotify/callback
+
+# Flask Configuration
+SECRET_KEY=your-secret-key-here-change-in-production
+FLASK_ENV=development
+EOF
+```
+
+**Or manually create `.env` with the following content:**
+
+```
+# Strava API Credentials
+STRAVA_CLIENT_ID=your_strava_client_id
+STRAVA_CLIENT_SECRET=your_strava_client_secret
+STRAVA_REDIRECT_URI=http://localhost:5500/strava/callback
+
+# Spotify API Credentials
+SPOTIFY_CLIENT_ID=your_spotify_client_id
+SPOTIFY_CLIENT_SECRET=your_spotify_client_secret
+SPOTIFY_REDIRECT_URI=http://127.0.0.1:5500/spotify/callback
+
+# Flask Configuration
+SECRET_KEY=your-secret-key-here-change-in-production
+FLASK_ENV=development
+```
+
+Replace the placeholder values with your actual API credentials.
+
+### 5. Run the Application
+
+Make sure your environment is activated, then:
+
 ```bash
 python app.py
 ```
 
-5. Open your browser and navigate to `http://localhost:5500`
+The application will start on `http://localhost:5500`
 
-## Usage
+### 6. Authenticate and Use
 
-1. **Authenticate with Strava**: Click "Connect Strava" and authorize the application
-2. **Authenticate with Spotify**: Click "Connect Spotify" and authorize the application
-3. **View Activities**: Browse your recent activities (last 30 days)
-4. **View Charts**: Click on any activity to see interactive charts with Spotify track overlays
+1. Open your browser and navigate to `http://localhost:5500`
+2. **Connect Strava**: Click "Connect Strava" and authorize the application
+3. **Connect Spotify**: Click "Connect Spotify" and authorize the application
+4. **View Activities**: Browse your recent activities from the Activities page
+5. **View Charts**: Click on any activity to see interactive charts with Spotify track overlays
+
+## Usage Guide
+
+### Dashboard
+
+The home page shows connection status for both Strava and Spotify, with buttons to refresh data from each service.
+
+### Activities Page
+
+- View all your Strava activities sorted by date (newest first)
+- See track counts for each activity
+- Toggle between metric/imperial units
+- Select your preferred timezone (EST, CST, PST, UTC)
+- Click any activity card to view detailed metrics
+
+### Activity Detail Page
+
+- Interactive charts showing:
+  - Heart Rate
+  - Pace
+  - Cadence
+  - Power (if available)
+  - Altitude
+  - Track timeline
+- Toggle smoothing for individual metrics
+- Colored shading shows when tracks were playing
+- Adjust units and timezone preferences
+
+### Song History
+
+View all stored Spotify tracks in the database, with statistics on total tracks stored.
 
 ## API Limitations
 
@@ -70,55 +183,58 @@ musicflow/
 ├── config.py              # Configuration and environment variables
 ├── strava_client.py       # Strava API client
 ├── spotify_client.py      # Spotify API client
-├── data_prep.py          # Data preparation and alignment (timestamps, timezones)
-├── track_storage.py      # Persistent storage for Spotify tracks (SQLite)
+├── data_prep.py          # Data preparation, alignment, and smoothing
+├── track_storage.py       # Persistent storage for Spotify tracks (SQLite)
 ├── plotting.py           # Chart creation and visualization
+├── units.py              # Unit conversion utilities
+├── formatting.py         # Data formatting utilities
 ├── requirements.txt      # Python dependencies
 ├── templates/            # HTML templates
+│   ├── base.html
 │   ├── index.html
 │   ├── activities.html
 │   ├── activity_detail.html
 │   ├── activity_debug.html
 │   ├── spotify_debug.html
 │   └── spotify_storage.html
+├── static/               # Static assets (CSS, JS)
 ├── spotify_tracks.db     # SQLite database (created automatically)
 └── README.md
 ```
 
-## Data Flow
+## Troubleshooting
 
-1. **Authentication**: Users authenticate with both Strava and Spotify via OAuth
-2. **Activity Fetching**: Strava activities are retrieved (last 30 days)
-3. **Stream Data**: Detailed time-series data (pace, HR, etc.) is fetched for selected activity
-4. **Track Fetching**: 
-   - Spotify recently played tracks are retrieved from API
-   - Tracks are automatically stored in local SQLite database (with deduplication)
-   - Stored tracks are queried for activity time range
-   - API and stored tracks are combined for comprehensive matching
-5. **Time Alignment**: Tracks are aligned with activity timeline using timestamps and timezones
-6. **Visualization**: Interactive charts are generated showing metrics with track overlays
+### Port Already in Use
 
-## Track Storage
+If port 5500 is already in use, you can change it in:
+- `app.py` (update the port in the `if __name__ == '__main__'` block)
+- `.env` file (update `STRAVA_REDIRECT_URI` and `SPOTIFY_REDIRECT_URI`)
+- Update redirect URIs in both Strava and Spotify dashboards
 
-MusicFlow includes a persistent storage system to overcome Spotify's API limitations:
+### Authentication Errors
 
-- **Automatic Storage**: Tracks are automatically saved when you view activities or sync manually
-- **Deduplication**: Duplicate tracks (same track_id + played_at) are automatically skipped
-- **Manual Sync**: Use the "View Stored Tracks" page to manually sync latest tracks from Spotify
-- **Query by Time Range**: Stored tracks can be queried for any time period, not just recent 50 tracks
-- **Database**: Uses SQLite (`spotify_tracks.db`) stored locally in the project directory
+- **"INVALID_CLIENT: Invalid redirect URI"**: Make sure the redirect URI in your Spotify dashboard exactly matches `http://127.0.0.1:5500/spotify/callback` (use `127.0.0.1`, not `localhost`)
+- **Strava redirect errors**: Ensure the callback domain in Strava settings is set to `localhost:5500`
 
-## Timezone Handling
+### Module Not Found Errors
 
-The application properly handles timezones:
-- Strava returns timestamps in UTC but includes activity timezone information
-- Spotify returns timestamps in ISO 8601 format
-- All timestamps are converted to timezone-aware datetime objects
-- Tracks are matched to activity segments based on precise timestamp overlap
+Make sure you've activated your environment and installed dependencies:
+```bash
+conda activate musicflow  # or: source venv/bin/activate
+pip install -r requirements.txt
+```
+
+### No Tracks Showing on Activities
+
+- Make sure you've authenticated with Spotify
+- Use the refresh button to sync latest tracks
+- Check the "Song History" page to see stored tracks
+- Tracks are only matched if they were playing during the activity time
 
 ## Development
 
 To run in development mode:
+
 ```bash
 export FLASK_ENV=development
 python app.py
@@ -134,4 +250,4 @@ This project is provided as-is for personal use.
 - For best results, ensure Spotify was playing music during your workouts
 - The application stores OAuth tokens in Flask sessions (in-memory)
 - For production use, implement proper token storage and refresh logic
-
+- Database files (`*.db`) are automatically ignored by git
