@@ -19,13 +19,14 @@ class UserManager:
         """Initialize user manager."""
         pass
 
-    def create_user(self, username: str, password: str) -> Tuple[bool, str, Optional[int]]:
+    def create_user(self, username: str, password: str, email: Optional[str] = None) -> Tuple[bool, str, Optional[int]]:
         """
         Create a new user account.
 
         Args:
             username: The desired username
             password: The user's password
+            email: Optional email address
 
         Returns:
             Tuple of (success, message, user_id or None)
@@ -46,6 +47,12 @@ class UserManager:
         if len(password) < self.MIN_PASSWORD_LENGTH:
             return False, f"Password must be at least {self.MIN_PASSWORD_LENGTH} characters", None
 
+        # Validate email if provided
+        if email:
+            email = email.strip().lower()
+            if '@' not in email or '.' not in email:
+                return False, "Please enter a valid email address", None
+
         # Check if username already exists
         if self.get_user_by_username(username):
             return False, "Username already exists", None
@@ -61,16 +68,16 @@ class UserManager:
             p = placeholder()
             if USE_POSTGRES:
                 cursor.execute(f'''
-                    INSERT INTO users (username, password_hash, created_at)
-                    VALUES ({p}, {p}, {p})
+                    INSERT INTO users (username, email, password_hash, created_at)
+                    VALUES ({p}, {p}, {p}, {p})
                     RETURNING id
-                ''', (username, password_hash.decode('utf-8'), datetime.now().isoformat()))
+                ''', (username, email, password_hash.decode('utf-8'), datetime.now().isoformat()))
                 user_id = cursor.fetchone()['id']
             else:
                 cursor.execute(f'''
-                    INSERT INTO users (username, password_hash, created_at)
-                    VALUES ({p}, {p}, {p})
-                ''', (username, password_hash.decode('utf-8'), datetime.now().isoformat()))
+                    INSERT INTO users (username, email, password_hash, created_at)
+                    VALUES ({p}, {p}, {p}, {p})
+                ''', (username, email, password_hash.decode('utf-8'), datetime.now().isoformat()))
                 user_id = cursor.lastrowid
 
             conn.commit()
@@ -107,6 +114,7 @@ class UserManager:
             return True, "Login successful", {
                 'id': user['id'],
                 'username': user['username'],
+                'email': user['email'],
                 'created_at': user['created_at']
             }
 
@@ -127,7 +135,7 @@ class UserManager:
 
         p = placeholder()
         cursor.execute(f'''
-            SELECT id, username, password_hash, created_at
+            SELECT id, username, email, password_hash, created_at
             FROM users WHERE username = {p}
         ''', (username.strip().lower(),))
 
@@ -141,6 +149,7 @@ class UserManager:
         return {
             'id': row['id'],
             'username': row['username'],
+            'email': row['email'],
             'password_hash': row['password_hash'],
             'created_at': row['created_at']
         }
@@ -160,7 +169,7 @@ class UserManager:
 
         p = placeholder()
         cursor.execute(f'''
-            SELECT id, username, created_at
+            SELECT id, username, email, created_at
             FROM users WHERE id = {p}
         ''', (user_id,))
 
@@ -174,6 +183,7 @@ class UserManager:
         return {
             'id': row['id'],
             'username': row['username'],
+            'email': row['email'],
             'created_at': row['created_at']
         }
 
@@ -279,7 +289,7 @@ class UserManager:
         cursor = get_cursor(conn)
 
         cursor.execute('''
-            SELECT id, username, created_at FROM users ORDER BY created_at DESC
+            SELECT id, username, email, created_at FROM users ORDER BY created_at DESC
         ''')
 
         rows = cursor.fetchall()
@@ -289,5 +299,6 @@ class UserManager:
         return [{
             'id': row['id'],
             'username': row['username'],
+            'email': row['email'],
             'created_at': row['created_at']
         } for row in rows]

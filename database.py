@@ -56,6 +56,7 @@ def init_database():
             CREATE TABLE IF NOT EXISTS users (
                 id SERIAL PRIMARY KEY,
                 username TEXT UNIQUE NOT NULL,
+                email TEXT,
                 password_hash TEXT NOT NULL,
                 created_at TEXT NOT NULL
             )
@@ -115,6 +116,7 @@ def init_database():
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 username TEXT UNIQUE NOT NULL,
+                email TEXT,
                 password_hash TEXT NOT NULL,
                 created_at TEXT NOT NULL
             )
@@ -169,6 +171,22 @@ def init_database():
             CREATE INDEX IF NOT EXISTS idx_tracks_track_id
             ON tracks(track_id)
         ''')
+
+    # Add email column if it doesn't exist (migration for existing installs)
+    try:
+        if USE_POSTGRES:
+            cursor.execute('''
+                ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT
+            ''')
+        else:
+            # SQLite doesn't have IF NOT EXISTS for ALTER TABLE, check manually
+            cursor.execute("PRAGMA table_info(users)")
+            columns = [col[1] for col in cursor.fetchall()]
+            if 'email' not in columns:
+                cursor.execute('ALTER TABLE users ADD COLUMN email TEXT')
+        conn.commit()
+    except Exception as e:
+        print(f"Note: email column migration: {e}")
 
     conn.commit()
     cursor.close()
