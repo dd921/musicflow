@@ -241,6 +241,23 @@
         color: var(--primary);
     }
 
+    /* View on Strava link - per Strava Brand Guidelines */
+    .view-on-strava-btn {
+        color: #FC5200;
+        font-weight: 600;
+        text-decoration: none;
+        font-size: 0.9rem;
+        padding: 10px 16px;
+        border: 1px solid #FC5200;
+        border-radius: 8px;
+        transition: var(--transition);
+    }
+
+    .view-on-strava-btn:hover {
+        background: rgba(252, 82, 0, 0.1);
+        text-decoration: underline;
+    }
+
     /* Custom Plotly chart background */
     .js-plotly-plot .plotly .modebar {
         background: transparent !important;
@@ -363,10 +380,16 @@
         </div>
         
         <div style="flex: 1;"></div>
-        
+
+        <a href="https://www.strava.com/activities/{{ activity.id }}" target="_blank" rel="noopener" class="view-on-strava-btn">
+            View on Strava
+        </a>
+
+        {% if not config.IS_PRODUCTION %}
         <a href="{{ url_for('activity_debug', activity_id=activity.id) }}" class="btn btn-secondary" style="font-size: 0.9rem;">
             🔍 Debug Tracks
         </a>
+        {% endif %}
     </div>
 </div>
 

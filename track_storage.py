@@ -12,13 +12,18 @@ from database import get_db_connection, get_cursor, placeholder, USE_POSTGRES
 class TrackStorage:
     """Manages persistent storage of Spotify track data."""
 
-    def __init__(self, user_id: Optional[int] = None):
+    def __init__(self, user_id: int):
         """
         Initialize track storage.
 
         Args:
-            user_id: User ID for filtering tracks (None for legacy/global access)
+            user_id: User ID for filtering tracks (REQUIRED for data isolation)
+
+        Raises:
+            ValueError: If user_id is None
         """
+        if user_id is None:
+            raise ValueError("user_id is required for TrackStorage to ensure data isolation")
         self.user_id = user_id
 
     def store_tracks(self, tracks: List[Dict], user_id: Optional[int] = None) -> int:
@@ -139,38 +144,23 @@ class TrackStorage:
 
         # Query tracks that overlap with the time range
         # A track overlaps if: track_start <= range_end AND track_end >= range_start
+        # Only return tracks belonging to the specific user (no NULL user_id for data isolation)
         if USE_POSTGRES:
-            if uid is not None:
-                cursor.execute(f'''
-                    SELECT * FROM tracks
-                    WHERE (user_id = {p} OR user_id IS NULL)
-                    AND played_at_timestamp <= {p}
-                    AND (played_at_timestamp::timestamp + (duration_ms || ' milliseconds')::interval) >= {p}
-                    ORDER BY played_at_timestamp ASC
-                ''', (uid, end_str, start_str))
-            else:
-                cursor.execute(f'''
-                    SELECT * FROM tracks
-                    WHERE played_at_timestamp <= {p}
-                    AND (played_at_timestamp::timestamp + (duration_ms || ' milliseconds')::interval) >= {p}
-                    ORDER BY played_at_timestamp ASC
-                ''', (end_str, start_str))
+            cursor.execute(f'''
+                SELECT * FROM tracks
+                WHERE user_id = {p}
+                AND played_at_timestamp <= {p}
+                AND (played_at_timestamp::timestamp + (duration_ms || ' milliseconds')::interval) >= {p}
+                ORDER BY played_at_timestamp ASC
+            ''', (uid, end_str, start_str))
         else:
-            if uid is not None:
-                cursor.execute(f'''
-                    SELECT * FROM tracks
-                    WHERE (user_id = {p} OR user_id IS NULL)
-                    AND played_at_timestamp <= {p}
-                    AND datetime(played_at_timestamp, '+' || (duration_ms / 1000.0) || ' seconds') >= {p}
-                    ORDER BY played_at_timestamp ASC
-                ''', (uid, end_str, start_str))
-            else:
-                cursor.execute(f'''
-                    SELECT * FROM tracks
-                    WHERE played_at_timestamp <= {p}
-                    AND datetime(played_at_timestamp, '+' || (duration_ms / 1000.0) || ' seconds') >= {p}
-                    ORDER BY played_at_timestamp ASC
-                ''', (end_str, start_str))
+            cursor.execute(f'''
+                SELECT * FROM tracks
+                WHERE user_id = {p}
+                AND played_at_timestamp <= {p}
+                AND datetime(played_at_timestamp, '+' || (duration_ms / 1000.0) || ' seconds') >= {p}
+                ORDER BY played_at_timestamp ASC
+            ''', (uid, end_str, start_str))
 
         rows = cursor.fetchall()
         tracks = []
@@ -212,12 +202,9 @@ class TrackStorage:
         cursor = get_cursor(conn)
         p = placeholder()
 
-        if uid is not None:
-            query = f'SELECT * FROM tracks WHERE (user_id = {p} OR user_id IS NULL) ORDER BY {order_by}'
-            params = [uid]
-        else:
-            query = f'SELECT * FROM tracks ORDER BY {order_by}'
-            params = []
+        # Only return tracks belonging to the specific user (no NULL user_id for data isolation)
+        query = f'SELECT * FROM tracks WHERE user_id = {p} ORDER BY {order_by}'
+        params = [uid]
 
         if limit:
             query += f' LIMIT {limit}'
@@ -243,7 +230,7 @@ class TrackStorage:
         return tracks
 
     def get_track_count(self, user_id: Optional[int] = None) -> int:
-        """Get total number of stored tracks."""
+        """Get total number of stored tracks for the user."""
         # Use provided user_id or fall back to instance user_id
         uid = user_id if user_id is not None else self.user_id
 
@@ -251,10 +238,8 @@ class TrackStorage:
         cursor = get_cursor(conn)
         p = placeholder()
 
-        if uid is not None:
-            cursor.execute(f'SELECT COUNT(*) as count FROM tracks WHERE (user_id = {p} OR user_id IS NULL)', (uid,))
-        else:
-            cursor.execute('SELECT COUNT(*) as count FROM tracks')
+        # Only count tracks belonging to the specific user
+        cursor.execute(f'SELECT COUNT(*) as count FROM tracks WHERE user_id = {p}', (uid,))
 
         row = cursor.fetchone()
         count = row['count'] if USE_POSTGRES else row[0]
@@ -263,7 +248,7 @@ class TrackStorage:
         return count
 
     def get_oldest_track(self, user_id: Optional[int] = None) -> Optional[datetime]:
-        """Get timestamp of oldest stored track."""
+        """Get timestamp of oldest stored track for the user."""
         # Use provided user_id or fall back to instance user_id
         uid = user_id if user_id is not None else self.user_id
 
@@ -271,10 +256,8 @@ class TrackStorage:
         cursor = get_cursor(conn)
         p = placeholder()
 
-        if uid is not None:
-            cursor.execute(f'SELECT MIN(played_at_timestamp) as min_ts FROM tracks WHERE (user_id = {p} OR user_id IS NULL)', (uid,))
-        else:
-            cursor.execute('SELECT MIN(played_at_timestamp) as min_ts FROM tracks')
+        # Only check tracks belonging to the specific user
+        cursor.execute(f'SELECT MIN(played_at_timestamp) as min_ts FROM tracks WHERE user_id = {p}', (uid,))
 
         row = cursor.fetchone()
         result = row['min_ts'] if USE_POSTGRES else row[0]
@@ -286,7 +269,7 @@ class TrackStorage:
         return None
 
     def get_newest_track(self, user_id: Optional[int] = None) -> Optional[datetime]:
-        """Get timestamp of newest stored track."""
+        """Get timestamp of newest stored track for the user."""
         # Use provided user_id or fall back to instance user_id
         uid = user_id if user_id is not None else self.user_id
 
@@ -294,10 +277,8 @@ class TrackStorage:
         cursor = get_cursor(conn)
         p = placeholder()
 
-        if uid is not None:
-            cursor.execute(f'SELECT MAX(played_at_timestamp) as max_ts FROM tracks WHERE (user_id = {p} OR user_id IS NULL)', (uid,))
-        else:
-            cursor.execute('SELECT MAX(played_at_timestamp) as max_ts FROM tracks')
+        # Only check tracks belonging to the specific user
+        cursor.execute(f'SELECT MAX(played_at_timestamp) as max_ts FROM tracks WHERE user_id = {p}', (uid,))
 
         row = cursor.fetchone()
         result = row['max_ts'] if USE_POSTGRES else row[0]
@@ -310,7 +291,7 @@ class TrackStorage:
 
     def cleanup_old_tracks(self, days_to_keep: int = 90, user_id: Optional[int] = None):
         """
-        Remove tracks older than specified days.
+        Remove tracks older than specified days for the user.
 
         Args:
             days_to_keep: Number of days of history to keep
@@ -326,11 +307,9 @@ class TrackStorage:
         cursor = get_cursor(conn)
         p = placeholder()
 
-        if uid is not None:
-            cursor.execute(f'DELETE FROM tracks WHERE played_at_timestamp < {p} AND (user_id = {p} OR user_id IS NULL)',
-                         (cutoff_str, uid))
-        else:
-            cursor.execute(f'DELETE FROM tracks WHERE played_at_timestamp < {p}', (cutoff_str,))
+        # Only delete tracks belonging to the specific user
+        cursor.execute(f'DELETE FROM tracks WHERE played_at_timestamp < {p} AND user_id = {p}',
+                     (cutoff_str, uid))
 
         deleted_count = cursor.rowcount
         conn.commit()

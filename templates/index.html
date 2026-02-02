@@ -561,6 +561,21 @@
             box-shadow: 0 12px 35px rgba(252, 76, 2, 0.5);
         }
 
+        /* Official Strava Connect Button */
+        .strava-connect-btn {
+            display: inline-block;
+            transition: all 0.3s ease;
+        }
+
+        .strava-connect-btn:hover {
+            transform: translateY(-3px);
+            filter: brightness(1.1);
+        }
+
+        .strava-connect-btn img {
+            display: block;
+        }
+
         .btn-spotify {
             background: var(--gradient-2);
             color: white;
@@ -665,7 +680,11 @@
                     <span class="status-badge connected">✓ Connected</span>
                     {% else %}
                     <p>Connect to access your workout data</p>
-                    <a href="{{ url_for('strava_auth') }}" class="btn btn-strava">Connect Strava</a>
+                    <a href="{{ url_for('strava_auth') }}" class="strava-connect-btn">
+                        <img src="{{ url_for('static', filename='images/strava/btn_strava_connect_with_orange.svg') }}"
+                             alt="Connect with Strava"
+                             height="48">
+                    </a>
                     {% endif %}
                 </div>
                 
@@ -713,8 +732,95 @@
                     <li>Sync regularly to build your track history!</li>
                 </ul>
             </div>
+
+            <!-- Attribution Footer -->
+            <div class="attribution-footer">
+                <div class="attribution-logos">
+                    <a href="https://www.strava.com" target="_blank" rel="noopener" class="attribution-link">
+                        <img src="{{ url_for('static', filename='images/strava/api_logo_pwrdBy_strava_horiz_orange.svg') }}"
+                             alt="Powered by Strava"
+                             height="24">
+                    </a>
+                    <span class="attribution-divider">|</span>
+                    <a href="https://www.spotify.com" target="_blank" rel="noopener" class="attribution-link">
+                        <span class="attribution-text">Music from</span>
+                        <span class="spotify-brand">Spotify</span>
+                    </a>
+                </div>
+                <div class="attribution-links">
+                    <a href="mailto:support@musicflow.app">Contact</a>
+                    <span class="attribution-divider">|</span>
+                    <a href="/privacy">Privacy Policy</a>
+                </div>
+            </div>
         </div>
     </div>
+
+    <style>
+        .attribution-footer {
+            margin-top: 50px;
+            padding-top: 30px;
+            border-top: 1px solid var(--dark-medium);
+            text-align: center;
+        }
+
+        .attribution-logos {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 15px;
+        }
+
+        .attribution-link {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+            color: var(--text-muted);
+            transition: all 0.3s ease;
+        }
+
+        .attribution-link:hover {
+            color: var(--text);
+        }
+
+        .attribution-text {
+            font-size: 0.85rem;
+        }
+
+        .strava-brand {
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: #FC4C02;
+            letter-spacing: 1px;
+        }
+
+        .spotify-brand {
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: #1DB954;
+        }
+
+        .attribution-divider {
+            color: var(--dark-medium);
+        }
+
+        .attribution-links {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .attribution-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .attribution-links a:hover {
+            color: var(--primary);
+        }
+    </style>
 </body>
 </html>
 {% endif %}

@@ -14,20 +14,22 @@ from track_storage import TrackStorage
 
 class DataPreparator:
     """Prepares and aligns Strava and Spotify data for visualization."""
-    
+
     def __init__(self, strava_client: StravaClient, spotify_client: SpotifyClient,
-                 track_storage: Optional[TrackStorage] = None):
+                 track_storage: TrackStorage):
         """
         Initialize data preparator.
-        
+
         Args:
             strava_client: Authenticated Strava client
             spotify_client: Authenticated Spotify client
-            track_storage: Optional TrackStorage instance for persistent storage
+            track_storage: TrackStorage instance for persistent storage (required for data isolation)
         """
+        if track_storage is None:
+            raise ValueError("track_storage is required for DataPreparator to ensure data isolation")
         self.strava_client = strava_client
         self.spotify_client = spotify_client
-        self.track_storage = track_storage or TrackStorage()
+        self.track_storage = track_storage
     
     def get_activity_with_streams(self, activity_id: int) -> Tuple[Dict, Dict]:
         """

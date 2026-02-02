@@ -11,15 +11,17 @@ import config
 
 class StravaClient:
     """Client for interacting with Strava API."""
-    
-    def __init__(self, access_token: Optional[str] = None):
+
+    def __init__(self, access_token: Optional[str] = None, athlete_id: Optional[int] = None):
         """
         Initialize Strava client.
-        
+
         Args:
             access_token: OAuth access token for Strava API
+            athlete_id: Expected athlete ID for ownership verification
         """
         self.access_token = access_token
+        self.athlete_id = athlete_id
         self.base_url = "https://www.strava.com/api/v3"
         self.rate_limit_remaining = config.STRAVA_RATE_LIMIT
         self.rate_limit_reset = None
@@ -137,22 +139,36 @@ class StravaClient:
         
         return activities
     
-    def get_activity(self, activity_id: int, include_all_efforts: bool = False) -> Dict:
+    def get_activity(self, activity_id: int, include_all_efforts: bool = False,
+                     verify_ownership: bool = True) -> Dict:
         """
         Get detailed activity data including streams.
-        
+
         Args:
             activity_id: Strava activity ID
             include_all_efforts: Include segment efforts
-        
+            verify_ownership: If True, verify activity belongs to authenticated athlete
+
         Returns:
             Detailed activity data
+
+        Raises:
+            PermissionError: If verify_ownership is True and activity doesn't belong to athlete
         """
         params = {}
         if include_all_efforts:
             params['include_all_efforts'] = 'true'
-        
+
         activity = self._make_request(f'activities/{activity_id}', params=params)
+
+        # Verify ownership if athlete_id is set and verification requested
+        if verify_ownership and self.athlete_id:
+            activity_athlete_id = activity.get('athlete', {}).get('id')
+            if activity_athlete_id != self.athlete_id:
+                raise PermissionError(
+                    f"Activity {activity_id} does not belong to authenticated athlete"
+                )
+
         return activity
     
     def get_activity_streams(self, activity_id: int, 

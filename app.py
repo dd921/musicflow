@@ -118,7 +118,12 @@ def load_user_context():
             # Try to load Strava token and initialize client
             strava_token = token_manager.get_valid_token(user['id'], 'strava')
             if strava_token:
-                g.strava_client = StravaClient(access_token=strava_token['access_token'])
+                # Get stored athlete ID for ownership verification
+                athlete_id = token_manager.get_strava_athlete_id(user['id'])
+                g.strava_client = StravaClient(
+                    access_token=strava_token['access_token'],
+                    athlete_id=athlete_id
+                )
 
             # Try to load Spotify token and initialize client
             spotify_token = token_manager.get_valid_token(user['id'], 'spotify')
@@ -138,11 +143,12 @@ def load_user_context():
 
 @app.context_processor
 def inject_user():
-    """Make user available in all templates."""
+    """Make user and config available in all templates."""
     return {
         'current_user': g.user,
         'strava_auth': g.strava_client is not None,
-        'spotify_auth': g.spotify_client is not None
+        'spotify_auth': g.spotify_client is not None,
+        'config': config
     }
 
 
@@ -211,6 +217,10 @@ def register():
 @app.route('/debug/redirect-uris')
 def debug_redirect_uris():
     """Debug endpoint to show configured redirect URIs."""
+    # Only allow in development mode
+    if config.IS_PRODUCTION:
+        return "Not found", 404
+
     return {
         'spotify_redirect_uri': config.SPOTIFY_REDIRECT_URI,
         'strava_redirect_uri': config.STRAVA_REDIRECT_URI,
@@ -494,6 +504,8 @@ def activity_detail(activity_id):
                              smooth_altitude=smooth_altitude,
                              smooth_window=smooth_window,
                              available_timezones=TimezoneConverter.get_available_timezones())
+    except PermissionError as e:
+        return "Activity not found or access denied", 403
     except Exception as e:
         import traceback
         error_details = traceback.format_exc()
@@ -563,6 +575,8 @@ def api_activity_chart(activity_id):
             'workout_chart': workout_chart.to_json(),
             'timeline_chart': timeline_chart.to_json()
         })
+    except PermissionError as e:
+        return jsonify({'error': 'Activity not found or access denied'}), 403
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -585,6 +599,8 @@ def api_activity_data(activity_id):
             'tracks': tracks,
             'data': json.loads(df_json)
         })
+    except PermissionError as e:
+        return jsonify({'error': 'Activity not found or access denied'}), 403
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -593,6 +609,10 @@ def api_activity_data(activity_id):
 @login_required
 def spotify_debug():
     """Debug page showing Spotify recently played tracks."""
+    # Only allow in development mode
+    if config.IS_PRODUCTION:
+        return "Not found", 404
+
     if not g.spotify_client:
         return redirect(url_for('spotify_auth'))
 
@@ -710,6 +730,10 @@ def spotify_storage():
 @login_required
 def activity_debug(activity_id):
     """Debug page showing activity timing and Spotify track matching info."""
+    # Only allow in development mode
+    if config.IS_PRODUCTION:
+        return "Not found", 404
+
     if not g.strava_client:
         return redirect(url_for('strava_auth'))
 
@@ -717,7 +741,7 @@ def activity_debug(activity_id):
         return redirect(url_for('spotify_auth'))
 
     try:
-        # Get activity
+        # Get activity (ownership is verified by StravaClient)
         activity, streams = g.data_prep.get_activity_with_streams(activity_id)
 
         # Get activity time range
@@ -750,6 +774,8 @@ def activity_debug(activity_id):
                              search_end=search_end,
                              all_tracks=all_tracks,
                              matching_tracks=matching_tracks)
+    except PermissionError as e:
+        return "Activity not found or access denied", 403
     except Exception as e:
         import traceback
         error_details = traceback.format_exc()
@@ -761,6 +787,12 @@ def logout():
     """Clear session and logout."""
     session.clear()
     return redirect(url_for('login'))
+
+
+@app.route('/privacy')
+def privacy_policy():
+    """Privacy policy page."""
+    return render_template('privacy.html')
 
 
 @app.route('/strava/disconnect', methods=['POST'])

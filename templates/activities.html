@@ -157,6 +157,26 @@
         flex-wrap: wrap;
         margin-bottom: 10px;
     }
+
+    /* View on Strava link - per Strava Brand Guidelines */
+    .view-on-strava {
+        display: inline-block;
+        margin-top: 15px;
+        padding-top: 15px;
+        border-top: 1px solid var(--dark-medium);
+        width: 100%;
+        text-align: center;
+        color: #FC5200;
+        font-weight: 600;
+        text-decoration: none;
+        font-size: 0.9rem;
+        transition: var(--transition);
+    }
+
+    .view-on-strava:hover {
+        text-decoration: underline;
+        color: #FF6B35;
+    }
 {% endblock %}
 
 {% block content %}
@@ -251,6 +271,9 @@
                 </div>
                 {% endif %}
             </div>
+            <a href="https://www.strava.com/activities/{{ activity.id }}" target="_blank" rel="noopener" class="view-on-strava" onclick="event.stopPropagation();">
+                View on Strava
+            </a>
         </div>
         {% endfor %}
     </div>

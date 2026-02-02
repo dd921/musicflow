@@ -32,7 +32,7 @@ class TokenManager:
 
         p = placeholder()
         cursor.execute(f'''
-            SELECT access_token, refresh_token, expires_at, scope, updated_at
+            SELECT access_token, refresh_token, expires_at, scope, updated_at, strava_athlete_id
             FROM oauth_tokens
             WHERE user_id = {p} AND provider = {p}
         ''', (user_id, provider))
@@ -45,22 +45,14 @@ class TokenManager:
             return None
 
         # Handle both dict-like (psycopg2) and tuple-like (sqlite3) rows
-        if USE_POSTGRES:
-            return {
-                'access_token': row['access_token'],
-                'refresh_token': row['refresh_token'],
-                'expires_at': row['expires_at'],
-                'scope': row['scope'],
-                'updated_at': row['updated_at']
-            }
-        else:
-            return {
-                'access_token': row['access_token'],
-                'refresh_token': row['refresh_token'],
-                'expires_at': row['expires_at'],
-                'scope': row['scope'],
-                'updated_at': row['updated_at']
-            }
+        return {
+            'access_token': row['access_token'],
+            'refresh_token': row['refresh_token'],
+            'expires_at': row['expires_at'],
+            'scope': row['scope'],
+            'updated_at': row['updated_at'],
+            'strava_athlete_id': row['strava_athlete_id']
+        }
 
     def get_valid_token(self, user_id: int, provider: str) -> Optional[Dict]:
         """
@@ -96,7 +88,7 @@ class TokenManager:
 
         return token
 
-    def store_token(self, user_id: int, provider: str, token_data: Dict):
+    def store_token(self, user_id: int, provider: str, token_data: Dict, athlete_id: Optional[int] = None):
         """
         Store or update a token for a user.
 
@@ -104,6 +96,7 @@ class TokenManager:
             user_id: The user's ID
             provider: 'strava' or 'spotify'
             token_data: Token data from OAuth flow
+            athlete_id: Strava athlete ID (only for Strava provider)
         """
         conn = get_db_connection()
         cursor = get_cursor(conn)
@@ -121,34 +114,68 @@ class TokenManager:
         if not expires_at and 'expires_in' in token_data:
             expires_at = int(time.time()) + token_data['expires_in']
 
+        # For Strava, extract athlete_id from token_data if not provided
+        if provider == 'strava' and athlete_id is None:
+            athlete_info = token_data.get('athlete', {})
+            athlete_id = athlete_info.get('id')
+
         if USE_POSTGRES:
             # PostgreSQL upsert
             cursor.execute(f'''
-                INSERT INTO oauth_tokens (user_id, provider, access_token, refresh_token, expires_at, scope, updated_at)
-                VALUES ({p}, {p}, {p}, {p}, {p}, {p}, {p})
+                INSERT INTO oauth_tokens (user_id, provider, access_token, refresh_token, expires_at, scope, updated_at, strava_athlete_id)
+                VALUES ({p}, {p}, {p}, {p}, {p}, {p}, {p}, {p})
                 ON CONFLICT(user_id, provider) DO UPDATE SET
                     access_token = EXCLUDED.access_token,
                     refresh_token = COALESCE(EXCLUDED.refresh_token, oauth_tokens.refresh_token),
                     expires_at = EXCLUDED.expires_at,
                     scope = EXCLUDED.scope,
-                    updated_at = EXCLUDED.updated_at
-            ''', (user_id, provider, access_token, refresh_token, expires_at, scope, now))
+                    updated_at = EXCLUDED.updated_at,
+                    strava_athlete_id = COALESCE(EXCLUDED.strava_athlete_id, oauth_tokens.strava_athlete_id)
+            ''', (user_id, provider, access_token, refresh_token, expires_at, scope, now, athlete_id))
         else:
             # SQLite upsert
             cursor.execute(f'''
-                INSERT INTO oauth_tokens (user_id, provider, access_token, refresh_token, expires_at, scope, updated_at)
-                VALUES ({p}, {p}, {p}, {p}, {p}, {p}, {p})
+                INSERT INTO oauth_tokens (user_id, provider, access_token, refresh_token, expires_at, scope, updated_at, strava_athlete_id)
+                VALUES ({p}, {p}, {p}, {p}, {p}, {p}, {p}, {p})
                 ON CONFLICT(user_id, provider) DO UPDATE SET
                     access_token = excluded.access_token,
                     refresh_token = COALESCE(excluded.refresh_token, oauth_tokens.refresh_token),
                     expires_at = excluded.expires_at,
                     scope = excluded.scope,
-                    updated_at = excluded.updated_at
-            ''', (user_id, provider, access_token, refresh_token, expires_at, scope, now))
+                    updated_at = excluded.updated_at,
+                    strava_athlete_id = COALESCE(excluded.strava_athlete_id, oauth_tokens.strava_athlete_id)
+            ''', (user_id, provider, access_token, refresh_token, expires_at, scope, now, athlete_id))
 
         conn.commit()
         cursor.close()
         conn.close()
+
+    def get_strava_athlete_id(self, user_id: int) -> Optional[int]:
+        """
+        Get the stored Strava athlete ID for a user.
+
+        Args:
+            user_id: The user's ID
+
+        Returns:
+            Strava athlete ID or None if not found
+        """
+        conn = get_db_connection()
+        cursor = get_cursor(conn)
+
+        p = placeholder()
+        cursor.execute(f'''
+            SELECT strava_athlete_id FROM oauth_tokens
+            WHERE user_id = {p} AND provider = 'strava'
+        ''', (user_id,))
+
+        row = cursor.fetchone()
+        cursor.close()
+        conn.close()
+
+        if row and row['strava_athlete_id']:
+            return row['strava_athlete_id']
+        return None
 
     def delete_token(self, user_id: int, provider: str):
         """

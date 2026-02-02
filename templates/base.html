@@ -601,6 +601,91 @@
             background: var(--text-dim);
         }
 
+        /* Footer Styles */
+        .app-footer {
+            margin-top: 60px;
+            padding: 30px 50px;
+            border-top: 1px solid var(--dark-medium);
+            background: var(--dark-light);
+        }
+
+        .footer-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .footer-attribution {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .powered-by-link {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+            color: var(--text-muted);
+            transition: var(--transition);
+        }
+
+        .powered-by-link:hover {
+            color: var(--text);
+        }
+
+        .powered-by-link:hover .strava-logo {
+            filter: brightness(1.1);
+        }
+
+        .powered-by-text {
+            font-size: 0.8rem;
+        }
+
+        .strava-logo {
+            transition: var(--transition);
+        }
+
+        .spotify-wordmark {
+            font-weight: 700;
+            font-size: 1rem;
+            color: #1DB954;
+        }
+
+        .footer-separator {
+            color: var(--dark-medium);
+        }
+
+        .footer-links {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-size: 0.85rem;
+        }
+
+        .footer-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: var(--transition);
+        }
+
+        .footer-links a:hover {
+            color: var(--primary);
+        }
+
+        @media (max-width: 768px) {
+            .app-footer {
+                padding: 20px 25px;
+            }
+
+            .footer-content {
+                flex-direction: column;
+                text-align: center;
+            }
+        }
+
         {% block extra_styles %}{% endblock %}
     </style>
 </head>
@@ -653,6 +738,18 @@
                     <span>Logout</span>
                 </a>
             </div>
+
+            <div class="nav-section">
+                <div class="nav-section-title">Links</div>
+                <a href="https://www.strava.com/dashboard" target="_blank" class="nav-link" rel="noopener">
+                    <span class="nav-link-icon">🏃</span>
+                    <span>My Strava</span>
+                </a>
+                <a href="https://open.spotify.com" target="_blank" class="nav-link" rel="noopener">
+                    <span class="nav-link-icon">🎵</span>
+                    <span>My Spotify</span>
+                </a>
+            </div>
         </nav>
         
         <div class="sidebar-footer">
@@ -668,6 +765,30 @@
     
     <main class="main-content">
         {% block content %}{% endblock %}
+
+        <!-- Footer with Attribution -->
+        <footer class="app-footer">
+            <div class="footer-content">
+                <div class="footer-attribution">
+                    <a href="https://www.strava.com" target="_blank" rel="noopener" class="powered-by-link">
+                        <img src="{{ url_for('static', filename='images/strava/api_logo_pwrdBy_strava_horiz_orange.svg') }}"
+                             alt="Powered by Strava"
+                             height="24"
+                             class="strava-logo">
+                    </a>
+                    <span class="footer-separator">|</span>
+                    <a href="https://www.spotify.com" target="_blank" rel="noopener" class="powered-by-link">
+                        <span class="powered-by-text">Music from</span>
+                        <span class="spotify-wordmark">Spotify</span>
+                    </a>
+                </div>
+                <div class="footer-links">
+                    <a href="mailto:support@musicflow.app">Contact Support</a>
+                    <span class="footer-separator">|</span>
+                    <a href="/privacy">Privacy Policy</a>
+                </div>
+            </div>
+        </footer>
     </main>
     
     <script>

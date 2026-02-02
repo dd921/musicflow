@@ -71,8 +71,15 @@ def init_database():
                 expires_at BIGINT,
                 scope TEXT,
                 updated_at TEXT NOT NULL,
+                strava_athlete_id BIGINT,
                 UNIQUE(user_id, provider)
             )
+        ''')
+
+        # Add strava_athlete_id column if it doesn't exist (for existing databases)
+        cursor.execute('''
+            ALTER TABLE oauth_tokens
+            ADD COLUMN IF NOT EXISTS strava_athlete_id BIGINT
         ''')
 
         cursor.execute('''
@@ -130,10 +137,17 @@ def init_database():
                 expires_at INTEGER,
                 scope TEXT,
                 updated_at TEXT NOT NULL,
+                strava_athlete_id INTEGER,
                 FOREIGN KEY (user_id) REFERENCES users(id),
                 UNIQUE(user_id, provider)
             )
         ''')
+
+        # Add strava_athlete_id column if it doesn't exist (for existing databases)
+        try:
+            cursor.execute('ALTER TABLE oauth_tokens ADD COLUMN strava_athlete_id INTEGER')
+        except:
+            pass  # Column already exists
 
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS tracks (
