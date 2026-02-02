@@ -191,13 +191,14 @@ def register():
     error = None
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
+        email = request.form.get('email', '').strip()
         password = request.form.get('password', '')
         confirm_password = request.form.get('confirm_password', '')
 
         if password != confirm_password:
             error = "Passwords do not match"
         else:
-            success, message, user_id = user_manager.create_user(username, password)
+            success, message, user_id = user_manager.create_user(username, password, email=email if email else None)
             if success and user_id:
                 session['user_id'] = user_id
                 session.permanent = True
@@ -214,8 +215,78 @@ def debug_redirect_uris():
     return {
         'spotify_redirect_uri': config.SPOTIFY_REDIRECT_URI,
         'strava_redirect_uri': config.STRAVA_REDIRECT_URI,
-        'base_url': config.BASE_URL
+        'base_url': config.BASE_URL,
+        'strava_client_id': config.STRAVA_CLIENT_ID,
+        'strava_client_secret_preview': config.STRAVA_CLIENT_SECRET[:8] + '...' if config.STRAVA_CLIENT_SECRET else None,
+        'database_url_preview': config.DATABASE_URL[:30] + '...' if config.DATABASE_URL else 'SQLite',
     }
+
+
+@app.route('/debug/db')
+def debug_db():
+    """Debug endpoint to check database connection and tables."""
+    from database import get_db_connection, get_cursor, USE_POSTGRES
+    try:
+        conn = get_db_connection()
+        cursor = get_cursor(conn)
+
+        # Check tables exist
+        if USE_POSTGRES:
+            cursor.execute("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'")
+        else:
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+
+        tables = [row[0] if not USE_POSTGRES else row['table_name'] for row in cursor.fetchall()]
+
+        # Count users
+        cursor.execute("SELECT COUNT(*) as count FROM users")
+        row = cursor.fetchone()
+        user_count = row['count'] if USE_POSTGRES else row[0]
+
+        cursor.close()
+        conn.close()
+
+        return {
+            'status': 'connected',
+            'database_type': 'PostgreSQL' if USE_POSTGRES else 'SQLite',
+            'tables': tables,
+            'user_count': user_count
+        }
+    except Exception as e:
+        return {'status': 'error', 'message': str(e)}, 500
+
+
+@app.route('/debug/strava-token', methods=['POST'])
+def debug_strava_token():
+    """Debug endpoint to test Strava token exchange."""
+    import requests
+
+    code = request.form.get('code') or request.args.get('code')
+    if not code:
+        return {'error': 'No code provided. Add ?code=YOUR_CODE'}, 400
+
+    url = "https://www.strava.com/oauth/token"
+    data = {
+        'client_id': config.STRAVA_CLIENT_ID,
+        'client_secret': config.STRAVA_CLIENT_SECRET,
+        'code': code,
+        'grant_type': 'authorization_code'
+    }
+
+    try:
+        response = requests.post(url, data=data)
+        return {
+            'status_code': response.status_code,
+            'response': response.json() if response.headers.get('content-type', '').startswith('application/json') else response.text,
+            'request_data': {
+                'client_id': config.STRAVA_CLIENT_ID,
+                'client_secret_preview': config.STRAVA_CLIENT_SECRET[:8] + '...' if config.STRAVA_CLIENT_SECRET else None,
+                'code_preview': code[:10] + '...',
+                'grant_type': 'authorization_code'
+            }
+        }
+    except Exception as e:
+        return {'error': str(e)}, 500
 
 
 @app.route('/strava/auth')
