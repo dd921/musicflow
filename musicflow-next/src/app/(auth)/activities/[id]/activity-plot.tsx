@@ -5,6 +5,7 @@ import createPlotlyComponent from "react-plotly.js/factory"
 import type { Layout, PlotData, Shape } from "plotly.js"
 import type { StravaStreams } from "@/lib/strava"
 import { TRACK_COLORS, type TrackSegment } from "@/lib/track-segments"
+import { METERS_PER_MILE, metersToFeet, type UnitSystem } from "@/lib/units"
 
 const Plot = createPlotlyComponent(Plotly)
 
@@ -14,7 +15,7 @@ const FONT_COLOR = "#a1a1aa"
 export const PLOT_MARGIN = { l: 56, r: 16 }
 
 type Metric = {
-  key: keyof StravaStreams
+  key: Exclude<keyof StravaStreams, "latlng">
   label: string
   color: string
   transform?: (values: number[]) => (number | null)[]
@@ -28,36 +29,47 @@ function movingAverage(values: number[], window: number): number[] {
   })
 }
 
-const METRICS: Metric[] = [
-  { key: "heartrate", label: "Heart Rate (bpm)", color: "#FF3366" },
-  {
-    key: "velocity_smooth",
-    label: "Pace (min/km)",
-    color: "#1DB954",
-    // Pace blows up at near-zero speeds; blank those points instead
-    transform: (values) =>
-      movingAverage(values, 5).map((v) => (v > 0.5 ? 1000 / v / 60 : null)),
-    reversed: true,
-  },
-  { key: "cadence", label: "Cadence", color: "#667eea" },
-  { key: "watts", label: "Power (W)", color: "#f39c12" },
-  { key: "altitude", label: "Elevation (m)", color: "#3498db" },
-]
+function getMetrics(units: UnitSystem): Metric[] {
+  const paceMeters = units === "metric" ? 1000 : METERS_PER_MILE
+  return [
+    { key: "heartrate", label: "Heart Rate (bpm)", color: "#FF3366" },
+    {
+      key: "velocity_smooth",
+      label: units === "metric" ? "Pace (min/km)" : "Pace (min/mi)",
+      color: "#1DB954",
+      // Pace blows up at near-zero speeds; blank those points instead
+      transform: (values) =>
+        movingAverage(values, 5).map((v) => (v > 0.5 ? paceMeters / v / 60 : null)),
+      reversed: true,
+    },
+    { key: "cadence", label: "Cadence", color: "#667eea" },
+    { key: "watts", label: "Power (W)", color: "#f39c12" },
+    {
+      key: "altitude",
+      label: units === "metric" ? "Elevation (m)" : "Elevation (ft)",
+      color: "#3498db",
+      transform:
+        units === "metric" ? undefined : (values) => values.map(metersToFeet),
+    },
+  ]
+}
 
 export default function ActivityPlot({
   streams,
   tracks,
   elapsedTime,
+  units,
 }: {
   streams: StravaStreams
   tracks: TrackSegment[]
   elapsedTime: number
+  units: UnitSystem
 }) {
   const time = streams.time?.data
   if (!time || time.length === 0) return null
 
   const minutes = time.map((t) => t / 60)
-  const available = METRICS.filter(
+  const available = getMetrics(units).filter(
     (m) => m.key !== "time" && (streams[m.key]?.data?.length ?? 0) > 0
   )
   if (available.length === 0) return null

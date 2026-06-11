@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma"
 import { syncSpotifyTracks } from "@/lib/sync-spotify"
 import { syncStravaActivities } from "@/lib/sync-strava"
 import { SportIcon } from "@/components/sport-icon"
+import { RouteThumbnail } from "@/components/route-thumbnail"
 
 export default async function DashboardPage() {
   const session = await auth()
@@ -150,6 +151,12 @@ export default async function DashboardPage() {
                     · {a.type}
                   </p>
                 </div>
+                {a.summaryPolyline && (
+                  <RouteThumbnail
+                    polyline={a.summaryPolyline}
+                    className="size-10 text-primary/80 shrink-0 hidden sm:block"
+                  />
+                )}
                 <ChevronRight className="size-4 text-muted-foreground/50 shrink-0" />
               </Link>
             ))}

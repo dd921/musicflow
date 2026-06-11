@@ -1,15 +1,24 @@
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { ConnectButton } from "@/components/connect-buttons"
+import { UnitToggle } from "@/components/unit-toggle"
+import type { UnitSystem } from "@/lib/units"
 
 export default async function SettingsPage() {
   const session = await auth()
   if (!session?.user?.id) return null
 
-  const accounts = await prisma.account.findMany({
-    where: { userId: session.user.id },
-    select: { provider: true },
-  })
+  const [accounts, user] = await Promise.all([
+    prisma.account.findMany({
+      where: { userId: session.user.id },
+      select: { provider: true },
+    }),
+    prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { units: true },
+    }),
+  ])
+  const units = (user?.units ?? "metric") as UnitSystem
 
   const stravaConnected = accounts.some((a) => a.provider === "strava")
   const spotifyConnected = accounts.some((a) => a.provider === "spotify")
@@ -40,6 +49,22 @@ export default async function SettingsPage() {
       <div
         className="card-surface rounded-2xl p-6 space-y-4 rise-in"
         style={{ animationDelay: "160ms" }}
+      >
+        <h3 className="text-lg font-semibold tracking-tight">Preferences</h3>
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium">Units</p>
+            <p className="text-xs text-muted-foreground">
+              Distance, pace, and elevation display
+            </p>
+          </div>
+          <UnitToggle current={units} />
+        </div>
+      </div>
+
+      <div
+        className="card-surface rounded-2xl p-6 space-y-4 rise-in"
+        style={{ animationDelay: "240ms" }}
       >
         <h3 className="text-lg font-semibold tracking-tight">Profile</h3>
         <div className="space-y-2 text-sm">

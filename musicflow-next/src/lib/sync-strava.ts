@@ -58,6 +58,7 @@ export async function syncStravaActivities(userId: string): Promise<StravaSyncRe
       maxSpeed: a.max_speed,
       totalElevation: a.total_elevation_gain,
       calories: a.calories ?? null,
+      summaryPolyline: a.map?.summary_polyline ?? null,
     }
 
     const existing = await prisma.activity.findUnique({

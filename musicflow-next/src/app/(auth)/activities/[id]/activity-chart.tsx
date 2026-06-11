@@ -5,6 +5,7 @@
 import dynamic from "next/dynamic"
 import type { StravaStreams } from "@/lib/strava"
 import { TRACK_COLORS, type TrackSegment } from "@/lib/track-segments"
+import type { UnitSystem } from "@/lib/units"
 
 const ActivityPlot = dynamic(() => import("./activity-plot"), {
   ssr: false,
@@ -26,10 +27,12 @@ export function ActivityChart({
   streams,
   tracks,
   elapsedTime,
+  units,
 }: {
   streams: StravaStreams | null
   tracks: TrackSegment[]
   elapsedTime: number
+  units: UnitSystem
 }) {
   const hasStreams = (streams?.time?.data?.length ?? 0) > 0
 
@@ -46,7 +49,12 @@ export function ActivityChart({
   return (
     <div className="card-surface rounded-2xl p-4 sm:p-6 space-y-2">
       {hasStreams ? (
-        <ActivityPlot streams={streams!} tracks={tracks} elapsedTime={elapsedTime} />
+        <ActivityPlot
+          streams={streams!}
+          tracks={tracks}
+          elapsedTime={elapsedTime}
+          units={units}
+        />
       ) : (
         <p className="text-sm text-muted-foreground">
           No stream data available for this activity.

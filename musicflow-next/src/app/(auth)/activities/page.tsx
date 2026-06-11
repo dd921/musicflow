@@ -4,7 +4,9 @@ import { ChevronRight, Footprints, RefreshCw } from "lucide-react"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { syncStravaActivities } from "@/lib/sync-strava"
+import { formatDistance, type UnitSystem } from "@/lib/units"
 import { SportIcon } from "@/components/sport-icon"
+import { RouteThumbnail } from "@/components/route-thumbnail"
 
 function formatDuration(seconds: number): string {
   const h = Math.floor(seconds / 3600)
@@ -13,11 +15,6 @@ function formatDuration(seconds: number): string {
   if (h > 0) return `${h}h ${m}m`
   if (m > 0) return `${m}m ${s}s`
   return `${s}s`
-}
-
-function formatDistance(meters: number): string {
-  const km = meters / 1000
-  return km >= 1 ? `${km.toFixed(2)} km` : `${meters} m`
 }
 
 function formatDate(date: Date): string {
@@ -30,12 +27,20 @@ function formatDate(date: Date): string {
 
 export default async function ActivitiesPage() {
   const session = await auth()
+  const userId = session!.user!.id!
 
-  const activities = await prisma.activity.findMany({
-    where: { userId: session!.user!.id! },
-    orderBy: { startDate: "desc" },
-    take: 50,
-  })
+  const [activities, user] = await Promise.all([
+    prisma.activity.findMany({
+      where: { userId },
+      orderBy: { startDate: "desc" },
+      take: 50,
+    }),
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { units: true },
+    }),
+  ])
+  const units = (user?.units ?? "metric") as UnitSystem
 
   return (
     <div className="space-y-6">
@@ -92,7 +97,7 @@ export default async function ActivitiesPage() {
                 {activity.distance > 0 && (
                   <div className="text-right">
                     <p className="font-semibold tabular-nums">
-                      {formatDistance(activity.distance)}
+                      {formatDistance(activity.distance, units)}
                     </p>
                     <p className="eyebrow !text-[0.6rem]">Distance</p>
                   </div>
@@ -107,6 +112,13 @@ export default async function ActivitiesPage() {
                   </div>
                 )}
               </div>
+
+              {activity.summaryPolyline && (
+                <RouteThumbnail
+                  polyline={activity.summaryPolyline}
+                  className="size-12 text-primary/80 shrink-0 hidden sm:block"
+                />
+              )}
 
               <ChevronRight className="size-4 text-muted-foreground/50 shrink-0" />
             </Link>

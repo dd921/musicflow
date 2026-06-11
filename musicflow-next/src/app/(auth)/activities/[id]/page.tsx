@@ -12,8 +12,16 @@ import {
   type TrackSegment,
 } from "@/lib/track-segments"
 import { syncSpotifyIfStale } from "@/lib/sync-spotify"
+import {
+  formatDistance,
+  formatElevation,
+  formatPace,
+  type UnitSystem,
+} from "@/lib/units"
+import { encodePolyline } from "@/lib/polyline"
 import { SportIcon } from "@/components/sport-icon"
 import { ActivityChart } from "./activity-chart"
+import { RouteMap } from "./route-map"
 
 function formatDuration(seconds: number): string {
   const h = Math.floor(seconds / 3600)
@@ -21,18 +29,6 @@ function formatDuration(seconds: number): string {
   const s = Math.round(seconds % 60)
   if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
   return `${m}:${String(s).padStart(2, "0")}`
-}
-
-function formatDistance(meters: number): string {
-  return `${(meters / 1000).toFixed(2)} km`
-}
-
-function formatPace(movingTime: number, meters: number): string {
-  if (meters <= 0) return "—"
-  const secPerKm = movingTime / (meters / 1000)
-  const m = Math.floor(secPerKm / 60)
-  const s = Math.round(secPerKm % 60)
-  return `${m}:${String(s).padStart(2, "0")} /km`
 }
 
 const ACTIVITY_VERBS: Record<string, string> = {
@@ -48,21 +44,34 @@ async function getStreams(activity: {
   userId: string
   stravaId: bigint
   streams: unknown
+  summaryPolyline: string | null
 }): Promise<StravaStreams | null> {
-  if (activity.streams) return activity.streams as StravaStreams
+  // Cached streams from before the map feature lack latlng; refetch those once.
+  // Stored streams always carry a latlng key (empty for GPS-less activities)
+  // so the refetch doesn't repeat.
+  const cached = activity.streams as StravaStreams | null
+  if (cached?.latlng) return cached
 
   const accessToken = await getValidToken(activity.userId, "strava")
-  if (!accessToken) return null
+  if (!accessToken) return cached
 
   try {
     const streams = await fetchActivityStreams(accessToken, activity.stravaId)
+    streams.latlng ??= { data: [] }
+
+    const latlng = streams.latlng.data
+    const summaryPolyline =
+      !activity.summaryPolyline && latlng.length >= 2
+        ? encodePolyline(latlng)
+        : activity.summaryPolyline
+
     await prisma.activity.update({
       where: { id: activity.id },
-      data: { streams },
+      data: { streams, summaryPolyline },
     })
     return streams
   } catch {
-    return null
+    return cached
   }
 }
 
@@ -75,10 +84,12 @@ export default async function ActivityDetailPage({
   const session = await auth()
   const userId = session!.user!.id!
 
-  const activity = await prisma.activity.findFirst({
-    where: { id, userId },
-  })
+  const [activity, user] = await Promise.all([
+    prisma.activity.findFirst({ where: { id, userId } }),
+    prisma.user.findUnique({ where: { id: userId }, select: { units: true } }),
+  ])
   if (!activity) notFound()
+  const units = (user?.units ?? "metric") as UnitSystem
 
   const startMs = activity.startDate.getTime()
   const endMs = startMs + activity.elapsedTime * 1000
@@ -133,7 +144,7 @@ export default async function ActivityDetailPage({
   const verb = ACTIVITY_VERBS[activity.type] ?? "logged"
   const narrative =
     activity.distance > 0
-      ? `You ${verb} ${formatDistance(activity.distance)} in ${formatDuration(activity.movingTime)}` +
+      ? `You ${verb} ${formatDistance(activity.distance, units)} in ${formatDuration(activity.movingTime)}` +
         (tracks.length > 0 ? ` to ${tracks.length} song${tracks.length === 1 ? "" : "s"}.` : ".")
       : tracks.length > 0
         ? `You listened to ${tracks.length} song${tracks.length === 1 ? "" : "s"} during this activity.`
@@ -142,11 +153,14 @@ export default async function ActivityDetailPage({
   const peak = peakHeartrateCallout(streams, tracks, activity.maxHeartrate)
 
   const stats = [
-    activity.distance > 0 && { label: "Distance", value: formatDistance(activity.distance) },
+    activity.distance > 0 && {
+      label: "Distance",
+      value: formatDistance(activity.distance, units),
+    },
     { label: "Moving Time", value: formatDuration(activity.movingTime) },
     activity.distance > 0 && {
       label: "Pace",
-      value: formatPace(activity.movingTime, activity.distance),
+      value: formatPace(activity.movingTime, activity.distance, units),
     },
     activity.averageHeartrate && {
       label: "Avg HR",
@@ -159,7 +173,7 @@ export default async function ActivityDetailPage({
     activity.totalElevation != null &&
       activity.totalElevation > 0 && {
         label: "Elevation",
-        value: `${Math.round(activity.totalElevation)} m`,
+        value: formatElevation(activity.totalElevation, units),
       },
     activity.calories && { label: "Calories", value: `${Math.round(activity.calories)}` },
   ].filter((s): s is { label: string; value: string } => Boolean(s))
@@ -216,11 +230,22 @@ export default async function ActivityDetailPage({
         </div>
       </div>
 
+      {streams?.latlng && streams.latlng.data.length >= 2 && (
+        <div className="rise-in" style={{ animationDelay: "120ms" }}>
+          <RouteMap
+            latlng={streams.latlng.data}
+            time={streams.time?.data ?? []}
+            tracks={tracks}
+          />
+        </div>
+      )}
+
       <div className="rise-in" style={{ animationDelay: "160ms" }}>
         <ActivityChart
           streams={streams}
           tracks={tracks}
           elapsedTime={activity.elapsedTime}
+          units={units}
         />
       </div>
 

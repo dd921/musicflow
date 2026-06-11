@@ -12,6 +12,7 @@ model User {
   username      String     @unique
   email         String?
   passwordHash  String?
+  units         String     @default("metric")
   createdAt     DateTime   @default(now())
   accounts      Account[]
   tracks        Track[]
@@ -74,6 +75,7 @@ model Activity {
   maxSpeed         Float?
   totalElevation   Float?
   calories         Float?
+  summaryPolyline  String?
   streams          Json?
   fetchedAt        DateTime @default(now())
   user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)

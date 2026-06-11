@@ -46,6 +46,7 @@ export type StravaActivity = {
   max_speed: number
   total_elevation_gain: number
   calories?: number
+  map?: { summary_polyline?: string | null }
 }
 
 export async function fetchStravaActivities(
@@ -70,13 +71,13 @@ export type StravaStreams = Partial<
     "time" | "heartrate" | "velocity_smooth" | "altitude" | "cadence" | "watts",
     { data: number[] }
   >
->
+> & { latlng?: { data: [number, number][] } }
 
 export async function fetchActivityStreams(
   accessToken: string,
   stravaActivityId: bigint
 ): Promise<StravaStreams> {
-  const keys = "time,heartrate,velocity_smooth,altitude,cadence,watts"
+  const keys = "time,heartrate,velocity_smooth,altitude,cadence,watts,latlng"
   const res = await fetch(
     `${STRAVA_API_URL}/activities/${stravaActivityId}/streams?keys=${keys}&key_by_type=true`,
     { headers: { Authorization: `Bearer ${accessToken}` } }
