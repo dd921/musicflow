@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 
 interface ConnectButtonProps {
@@ -22,7 +23,13 @@ export function ConnectButton({ provider, connected }: ConnectButtonProps) {
 
   async function handleDisconnect() {
     setLoading(true)
-    await fetch(`/api/${provider}/disconnect`, { method: "POST" })
+    const res = await fetch(`/api/${provider}/disconnect`, { method: "POST" })
+    if (!res.ok) {
+      const data = await res.json().catch(() => null)
+      toast.error(data?.error ?? `Failed to disconnect ${label}`)
+      setLoading(false)
+      return
+    }
     router.refresh()
     setLoading(false)
   }

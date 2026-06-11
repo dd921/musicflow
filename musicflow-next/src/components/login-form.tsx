@@ -62,6 +62,26 @@ export function LoginForm() {
       <Button type="submit" className="w-full gradient-accent" disabled={loading}>
         {loading ? "Signing in…" : "Sign In"}
       </Button>
+
+      <div className="relative py-1">
+        <div className="absolute inset-0 flex items-center">
+          <span className="w-full border-t border-border" />
+        </div>
+        <div className="relative flex justify-center">
+          <span className="bg-card px-2 text-xs uppercase text-muted-foreground">
+            or
+          </span>
+        </div>
+      </div>
+
+      <Button
+        type="button"
+        onClick={() => signIn("strava", { callbackUrl: "/dashboard" })}
+        className="w-full bg-[#FC4C02] text-white hover:bg-[#e04402]"
+        disabled={loading}
+      >
+        Sign in with Strava
+      </Button>
     </form>
   )
 }
