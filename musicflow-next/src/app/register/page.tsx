@@ -1,19 +1,28 @@
 import Link from "next/link"
 import { RegisterForm } from "@/components/register-form"
+import { LogoMark } from "@/components/logo"
 
 export default function RegisterPage() {
   return (
     <div className="min-h-screen flex items-center justify-center">
-      <div className="w-full max-w-md space-y-8 px-4">
-        <div className="text-center space-y-2">
-          <h1 className="text-4xl font-bold gradient-accent-text">MusicFlow</h1>
-          <p className="text-muted-foreground">Create your account</p>
+      <div className="w-full max-w-md space-y-8 px-4 py-12">
+        <div className="text-center space-y-4 rise-in">
+          <LogoMark className="size-14" />
+          <div className="space-y-2">
+            <h1 className="text-4xl font-bold tracking-tight gradient-brand-text">
+              MusicFlow
+            </h1>
+            <p className="text-muted-foreground">Create your account</p>
+          </div>
         </div>
-        <div className="glass rounded-xl p-6">
+        <div
+          className="card-surface rounded-2xl p-6 sm:p-8 rise-in"
+          style={{ animationDelay: "120ms" }}
+        >
           <RegisterForm />
-          <p className="mt-4 text-center text-sm text-muted-foreground">
+          <p className="mt-5 text-center text-sm text-muted-foreground">
             Already have an account?{" "}
-            <Link href="/" className="text-primary hover:underline">
+            <Link href="/" className="text-primary hover:underline font-medium">
               Sign in
             </Link>
           </p>

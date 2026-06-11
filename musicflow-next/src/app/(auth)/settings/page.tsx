@@ -16,23 +16,32 @@ export default async function SettingsPage() {
 
   return (
     <div className="max-w-2xl space-y-8">
-      <div>
-        <h2 className="text-3xl font-bold">Settings</h2>
+      <div className="rise-in">
+        <p className="eyebrow mb-2">Account</p>
+        <h2 className="text-3xl font-bold tracking-tight">Settings</h2>
         <p className="text-muted-foreground mt-1">
           Manage your connected accounts and preferences
         </p>
       </div>
 
-      <div className="glass rounded-xl p-6 space-y-6">
-        <h3 className="text-lg font-semibold">Connected Accounts</h3>
+      <div
+        className="card-surface rounded-2xl p-6 space-y-6 rise-in"
+        style={{ animationDelay: "80ms" }}
+      >
+        <h3 className="text-lg font-semibold tracking-tight">
+          Connected Accounts
+        </h3>
         <div className="space-y-4">
           <ConnectButton provider="strava" connected={stravaConnected} />
           <ConnectButton provider="spotify" connected={spotifyConnected} />
         </div>
       </div>
 
-      <div className="glass rounded-xl p-6 space-y-4">
-        <h3 className="text-lg font-semibold">Profile</h3>
+      <div
+        className="card-surface rounded-2xl p-6 space-y-4 rise-in"
+        style={{ animationDelay: "160ms" }}
+      >
+        <h3 className="text-lg font-semibold tracking-tight">Profile</h3>
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
             <span className="text-muted-foreground">Username</span>

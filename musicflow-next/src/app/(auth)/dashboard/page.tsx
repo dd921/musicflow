@@ -1,9 +1,11 @@
 import Link from "next/link"
 import { revalidatePath } from "next/cache"
+import { Activity, ChevronRight, Clock, Music, RefreshCw } from "lucide-react"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { syncSpotifyTracks } from "@/lib/sync-spotify"
 import { syncStravaActivities } from "@/lib/sync-strava"
+import { SportIcon } from "@/components/sport-icon"
 
 export default async function DashboardPage() {
   const session = await auth()
@@ -37,11 +39,33 @@ export default async function DashboardPage() {
     revalidatePath("/dashboard")
   }
 
+  const stats = [
+    {
+      label: "Activities",
+      value: activityCount || "—",
+      icon: Activity,
+      chip: "border-primary/20 bg-primary/10 text-primary",
+    },
+    {
+      label: "Tracks Synced",
+      value: trackCount || "—",
+      icon: Music,
+      chip: "border-accent/20 bg-accent/10 text-accent",
+    },
+    {
+      label: "Hours of Music",
+      value: hoursOfMusic || "—",
+      icon: Clock,
+      chip: "border-chart-3/20 bg-chart-3/10 text-chart-3",
+    },
+  ]
+
   return (
     <div className="space-y-8">
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex items-start justify-between gap-4 rise-in">
         <div>
-          <h2 className="text-3xl font-bold">
+          <p className="eyebrow mb-2">Dashboard</p>
+          <h2 className="text-3xl font-bold tracking-tight">
             Welcome back, {session?.user?.name}
           </h2>
           <p className="text-muted-foreground mt-1">
@@ -53,24 +77,31 @@ export default async function DashboardPage() {
         <form action={syncAll}>
           <button
             type="submit"
-            className="px-4 py-2 rounded-lg text-sm font-medium glass hover:bg-white/10 transition-colors shrink-0"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium card-surface card-hover shrink-0"
           >
+            <RefreshCw className="size-3.5" />
             Sync all
           </button>
         </form>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {[
-          { label: "Activities", value: activityCount || "—", icon: "🏃" },
-          { label: "Tracks Synced", value: trackCount || "—", icon: "🎵" },
-          { label: "Hours of Music", value: hoursOfMusic || "—", icon: "⏱" },
-        ].map((stat) => (
-          <div key={stat.label} className="glass rounded-xl p-6">
-            <div className="flex items-center gap-3">
-              <span className="text-2xl">{stat.icon}</span>
+        {stats.map((stat, i) => (
+          <div
+            key={stat.label}
+            className="card-surface rounded-2xl p-6 rise-in"
+            style={{ animationDelay: `${80 + i * 70}ms` }}
+          >
+            <div className="flex items-center gap-4">
+              <span
+                className={`inline-flex size-11 shrink-0 items-center justify-center rounded-xl border ${stat.chip}`}
+              >
+                <stat.icon className="size-5" strokeWidth={2} />
+              </span>
               <div>
-                <p className="text-2xl font-bold tabular-nums">{stat.value}</p>
+                <p className="text-2xl font-bold tabular-nums tracking-tight">
+                  {stat.value}
+                </p>
                 <p className="text-sm text-muted-foreground">{stat.label}</p>
               </div>
             </div>
@@ -79,22 +110,36 @@ export default async function DashboardPage() {
       </div>
 
       {recentActivities.length === 0 ? (
-        <div className="glass rounded-xl p-8 text-center">
+        <div
+          className="card-surface rounded-2xl p-8 text-center rise-in"
+          style={{ animationDelay: "300ms" }}
+        >
           <p className="text-muted-foreground">
             Your recent activities will appear here once you sync your accounts.
           </p>
         </div>
       ) : (
-        <div className="space-y-3">
-          <h3 className="text-lg font-semibold">Recent Activities</h3>
+        <div className="space-y-3 rise-in" style={{ animationDelay: "300ms" }}>
+          <div className="flex items-baseline justify-between">
+            <h3 className="text-lg font-semibold tracking-tight">
+              Recent Activities
+            </h3>
+            <Link
+              href="/activities"
+              className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary transition-colors"
+            >
+              View all
+              <ChevronRight className="size-3.5" />
+            </Link>
+          </div>
           <div className="space-y-2">
             {recentActivities.map((a) => (
               <Link
                 key={a.id}
                 href={`/activities/${a.id}`}
-                className="glass rounded-xl p-4 flex items-center gap-4 hover:bg-white/5 transition-colors block"
+                className="card-surface card-hover rounded-2xl p-4 flex items-center gap-4 block"
               >
-                <span className="text-xl">🏃</span>
+                <SportIcon type={a.type} />
                 <div className="flex-1 min-w-0">
                   <p className="font-medium truncate">{a.name}</p>
                   <p className="text-sm text-muted-foreground">
@@ -105,15 +150,10 @@ export default async function DashboardPage() {
                     · {a.type}
                   </p>
                 </div>
+                <ChevronRight className="size-4 text-muted-foreground/50 shrink-0" />
               </Link>
             ))}
           </div>
-          <Link
-            href="/activities"
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors block text-center pt-2"
-          >
-            View all activities →
-          </Link>
         </div>
       )}
     </div>

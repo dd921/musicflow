@@ -1,8 +1,10 @@
 import Link from "next/link"
 import { revalidatePath } from "next/cache"
+import { ChevronRight, Footprints, RefreshCw } from "lucide-react"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { syncStravaActivities } from "@/lib/sync-strava"
+import { SportIcon } from "@/components/sport-icon"
 
 function formatDuration(seconds: number): string {
   const h = Math.floor(seconds / 3600)
@@ -26,19 +28,6 @@ function formatDate(date: Date): string {
   }).format(date)
 }
 
-const SPORT_ICONS: Record<string, string> = {
-  Run: "🏃",
-  Ride: "🚴",
-  Swim: "🏊",
-  Walk: "🚶",
-  Hike: "🥾",
-  WeightTraining: "🏋️",
-  Workout: "💪",
-  Yoga: "🧘",
-  Skiing: "⛷️",
-  Snowboard: "🏂",
-}
-
 export default async function ActivitiesPage() {
   const session = await auth()
 
@@ -50,9 +39,10 @@ export default async function ActivitiesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between rise-in">
         <div>
-          <h2 className="text-3xl font-bold">Activities</h2>
+          <p className="eyebrow mb-2">Workouts</p>
+          <h2 className="text-3xl font-bold tracking-tight">Activities</h2>
           <p className="text-muted-foreground mt-1">
             {activities.length === 0
               ? "No activities synced yet"
@@ -63,23 +53,27 @@ export default async function ActivitiesPage() {
       </div>
 
       {activities.length === 0 ? (
-        <div className="glass rounded-xl p-12 text-center">
-          <p className="text-4xl mb-4">🏃</p>
+        <div
+          className="card-surface rounded-2xl p-12 text-center rise-in"
+          style={{ animationDelay: "100ms" }}
+        >
+          <span className="inline-flex size-14 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary mb-4">
+            <Footprints className="size-7" strokeWidth={1.75} />
+          </span>
           <p className="text-muted-foreground">
             Connect Strava and sync your activities to get started.
           </p>
         </div>
       ) : (
         <div className="space-y-2">
-          {activities.map((activity) => (
+          {activities.map((activity, i) => (
             <Link
               key={activity.id}
               href={`/activities/${activity.id}`}
-              className="glass rounded-xl p-4 flex items-center gap-4 hover:bg-white/5 transition-colors block"
+              className="card-surface card-hover rounded-2xl p-4 flex items-center gap-4 block rise-in"
+              style={{ animationDelay: `${Math.min(i, 10) * 40 + 80}ms` }}
             >
-              <span className="text-2xl shrink-0">
-                {SPORT_ICONS[activity.type] ?? "⚡"}
-              </span>
+              <SportIcon type={activity.type} />
 
               <div className="flex-1 min-w-0">
                 <p className="font-medium truncate">{activity.name}</p>
@@ -88,30 +82,33 @@ export default async function ActivitiesPage() {
                 </p>
               </div>
 
-              <div className="hidden sm:flex items-center gap-6 text-sm text-muted-foreground shrink-0">
+              <div className="hidden sm:flex items-center gap-8 shrink-0">
                 <div className="text-right">
-                  <p className="text-foreground font-medium tabular-nums">
+                  <p className="font-semibold tabular-nums">
                     {formatDuration(activity.movingTime)}
                   </p>
-                  <p>Duration</p>
+                  <p className="eyebrow !text-[0.6rem]">Time</p>
                 </div>
                 {activity.distance > 0 && (
                   <div className="text-right">
-                    <p className="text-foreground font-medium tabular-nums">
+                    <p className="font-semibold tabular-nums">
                       {formatDistance(activity.distance)}
                     </p>
-                    <p>Distance</p>
+                    <p className="eyebrow !text-[0.6rem]">Distance</p>
                   </div>
                 )}
                 {activity.averageHeartrate && (
                   <div className="text-right">
-                    <p className="text-foreground font-medium tabular-nums">
-                      {Math.round(activity.averageHeartrate)} bpm
+                    <p className="font-semibold tabular-nums">
+                      {Math.round(activity.averageHeartrate)}
+                      <span className="text-muted-foreground text-sm font-normal"> bpm</span>
                     </p>
-                    <p>Avg HR</p>
+                    <p className="eyebrow !text-[0.6rem]">Avg HR</p>
                   </div>
                 )}
               </div>
+
+              <ChevronRight className="size-4 text-muted-foreground/50 shrink-0" />
             </Link>
           ))}
         </div>
@@ -133,8 +130,9 @@ function SyncButton() {
     <form action={syncAction}>
       <button
         type="submit"
-        className="px-4 py-2 rounded-lg text-sm font-medium glass hover:bg-white/10 transition-colors"
+        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium card-surface card-hover"
       >
+        <RefreshCw className="size-3.5" />
         Sync Strava
       </button>
     </form>

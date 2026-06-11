@@ -59,7 +59,11 @@ export function LoginForm() {
         />
       </div>
       {error && <p className="text-sm text-destructive">{error}</p>}
-      <Button type="submit" className="w-full gradient-accent" disabled={loading}>
+      <Button
+        type="submit"
+        className="w-full gradient-energy text-white font-semibold hover:opacity-90 transition-opacity"
+        disabled={loading}
+      >
         {loading ? "Signing in…" : "Sign In"}
       </Button>
 
@@ -68,7 +72,7 @@ export function LoginForm() {
           <span className="w-full border-t border-border" />
         </div>
         <div className="relative flex justify-center">
-          <span className="bg-card px-2 text-xs uppercase text-muted-foreground">
+          <span className="bg-card px-2 font-mono text-[0.65rem] uppercase tracking-widest text-muted-foreground">
             or
           </span>
         </div>
@@ -76,8 +80,9 @@ export function LoginForm() {
 
       <Button
         type="button"
+        variant="outline"
         onClick={() => signIn("strava", { callbackUrl: "/dashboard" })}
-        className="w-full bg-[#FC4C02] text-white hover:bg-[#e04402]"
+        className="w-full border-[#FC4C02]/40 text-[#FC4C02] hover:bg-[#FC4C02]/10 hover:text-[#FC4C02] font-medium"
         disabled={loading}
       >
         Sign in with Strava

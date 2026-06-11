@@ -2,13 +2,12 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { Activity, LayoutDashboard, Settings } from "lucide-react"
 
 const navItems = [
-  { href: "/dashboard", label: "Home", icon: "⚡" },
-  { href: "/activities", label: "Activities", icon: "🏃" },
-  { href: "/tracks", label: "Tracks", icon: "🎵" },
-  { href: "/insights", label: "Insights", icon: "📊" },
-  { href: "/settings", label: "Settings", icon: "⚙️" },
+  { href: "/dashboard", label: "Home", icon: LayoutDashboard },
+  { href: "/activities", label: "Activities", icon: Activity },
+  { href: "/settings", label: "Settings", icon: Settings },
 ]
 
 export function BottomNav() {
@@ -24,11 +23,11 @@ export function BottomNav() {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex flex-col items-center gap-0.5 px-3 py-1.5 text-xs transition-colors ${
-                active ? "text-foreground" : "text-muted-foreground"
+              className={`flex flex-col items-center gap-1 px-4 py-1.5 text-[0.7rem] font-medium transition-colors ${
+                active ? "text-primary" : "text-muted-foreground"
               }`}
             >
-              <span className="text-lg">{item.icon}</span>
+              <item.icon className="size-5" strokeWidth={active ? 2.25 : 2} />
               <span>{item.label}</span>
             </Link>
           )

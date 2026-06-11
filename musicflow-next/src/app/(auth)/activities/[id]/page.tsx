@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
+import { ArrowLeft, HeartPulse, Music } from "lucide-react"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { getValidToken } from "@/lib/tokens"
@@ -7,9 +8,11 @@ import { fetchActivityStreams, type StravaStreams } from "@/lib/strava"
 import {
   computeTrackSegments,
   trackQueryWindow,
+  TRACK_COLORS,
   type TrackSegment,
 } from "@/lib/track-segments"
 import { syncSpotifyIfStale } from "@/lib/sync-spotify"
+import { SportIcon } from "@/components/sport-icon"
 import { ActivityChart } from "./activity-chart"
 
 function formatDuration(seconds: number): string {
@@ -163,68 +166,100 @@ export default async function ActivityDetailPage({
 
   return (
     <div className="space-y-6">
-      <div>
+      <div className="rise-in">
         <Link
           href="/activities"
-          className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
         >
-          ← Activities
+          <ArrowLeft className="size-3.5" />
+          Activities
         </Link>
-        <h2 className="text-3xl font-bold mt-2">{activity.name}</h2>
-        <p className="text-muted-foreground mt-1">
-          {new Intl.DateTimeFormat("en-US", {
-            weekday: "long",
-            month: "long",
-            day: "numeric",
-            year: "numeric",
-            hour: "numeric",
-            minute: "2-digit",
-          }).format(activity.startDate)}{" "}
-          · {activity.type}
-        </p>
+        <div className="flex items-center gap-4 mt-3">
+          <SportIcon type={activity.type} className="size-12" />
+          <div>
+            <h2 className="text-3xl font-bold tracking-tight">{activity.name}</h2>
+            <p className="text-muted-foreground mt-0.5">
+              {new Intl.DateTimeFormat("en-US", {
+                weekday: "long",
+                month: "long",
+                day: "numeric",
+                year: "numeric",
+                hour: "numeric",
+                minute: "2-digit",
+              }).format(activity.startDate)}{" "}
+              · {activity.type}
+            </p>
+          </div>
+        </div>
       </div>
 
-      <div className="glass rounded-xl p-6 space-y-4">
+      <div
+        className="card-surface rounded-2xl p-6 space-y-5 rise-in"
+        style={{ animationDelay: "80ms" }}
+      >
         {narrative && <p className="text-lg">{narrative}</p>}
-        {peak && <p className="text-sm text-muted-foreground">{peak}</p>}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        {peak && (
+          <p className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+            <HeartPulse className="size-4 text-chart-3 shrink-0" />
+            {peak}
+          </p>
+        )}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-5">
           {stats.map((stat) => (
             <div key={stat.label}>
-              <p className="text-xl font-semibold tabular-nums">{stat.value}</p>
-              <p className="text-sm text-muted-foreground">{stat.label}</p>
+              <p className="text-xl font-semibold tabular-nums tracking-tight">
+                {stat.value}
+              </p>
+              <p className="eyebrow mt-0.5 !text-[0.625rem]">{stat.label}</p>
             </div>
           ))}
         </div>
       </div>
 
-      <ActivityChart
-        streams={streams}
-        tracks={tracks}
-        elapsedTime={activity.elapsedTime}
-      />
+      <div className="rise-in" style={{ animationDelay: "160ms" }}>
+        <ActivityChart
+          streams={streams}
+          tracks={tracks}
+          elapsedTime={activity.elapsedTime}
+        />
+      </div>
 
       {noTracksReason && (
-        <div className="glass rounded-xl p-4">
-          <p className="text-sm text-muted-foreground">🎵 {noTracksReason}</p>
+        <div
+          className="card-surface rounded-2xl p-4 flex items-center gap-3 rise-in"
+          style={{ animationDelay: "240ms" }}
+        >
+          <Music className="size-4 text-accent shrink-0" />
+          <p className="text-sm text-muted-foreground">{noTracksReason}</p>
         </div>
       )}
 
       {tracks.length > 0 && (
-        <div className="space-y-3">
-          <h3 className="text-lg font-semibold">Tracks</h3>
+        <div className="space-y-3 rise-in" style={{ animationDelay: "240ms" }}>
+          <h3 className="text-lg font-semibold tracking-tight">Soundtrack</h3>
           <div className="space-y-2">
-            {tracks.map((track) => (
-              <div key={track.id} className="glass rounded-xl p-3 flex items-center gap-3">
+            {tracks.map((track, i) => (
+              <div
+                key={track.id}
+                className="card-surface rounded-2xl p-3 flex items-center gap-3 overflow-hidden relative"
+              >
+                <span
+                  className="absolute left-0 top-0 h-full w-1"
+                  style={{ backgroundColor: TRACK_COLORS[i % TRACK_COLORS.length] }}
+                />
+                <span className="font-mono text-xs text-muted-foreground w-6 text-center shrink-0">
+                  {String(i + 1).padStart(2, "0")}
+                </span>
                 {track.albumArtSmall ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={track.albumArtSmall}
                     alt=""
-                    className="h-10 w-10 rounded object-cover shrink-0"
+                    className="h-10 w-10 rounded-lg object-cover shrink-0"
                   />
                 ) : (
-                  <span className="h-10 w-10 rounded bg-white/5 flex items-center justify-center shrink-0">
-                    🎵
+                  <span className="h-10 w-10 rounded-lg bg-white/5 flex items-center justify-center shrink-0">
+                    <Music className="size-4 text-muted-foreground" />
                   </span>
                 )}
                 <div className="flex-1 min-w-0">
@@ -233,7 +268,7 @@ export default async function ActivityDetailPage({
                     {track.artists.join(", ")} · {track.album}
                   </p>
                 </div>
-                <p className="text-sm text-muted-foreground tabular-nums shrink-0">
+                <p className="font-mono text-xs text-muted-foreground tabular-nums shrink-0">
                   {formatDuration(Math.round(track.startSec))}
                 </p>
               </div>

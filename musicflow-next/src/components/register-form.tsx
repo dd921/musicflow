@@ -85,7 +85,11 @@ export function RegisterForm() {
         />
       </div>
       {error && <p className="text-sm text-destructive">{error}</p>}
-      <Button type="submit" className="w-full gradient-accent" disabled={loading}>
+      <Button
+        type="submit"
+        className="w-full gradient-energy text-white font-semibold hover:opacity-90 transition-opacity"
+        disabled={loading}
+      >
         {loading ? "Creating account…" : "Create Account"}
       </Button>
     </form>

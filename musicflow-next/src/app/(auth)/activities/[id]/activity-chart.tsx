@@ -35,7 +35,7 @@ export function ActivityChart({
 
   if (!hasStreams && tracks.length === 0) {
     return (
-      <div className="glass rounded-xl p-8 text-center">
+      <div className="card-surface rounded-2xl p-8 text-center">
         <p className="text-muted-foreground">
           No stream data or matched tracks for this activity yet.
         </p>
@@ -44,7 +44,7 @@ export function ActivityChart({
   }
 
   return (
-    <div className="glass rounded-xl p-4 sm:p-6 space-y-2">
+    <div className="card-surface rounded-2xl p-4 sm:p-6 space-y-2">
       {hasStreams ? (
         <ActivityPlot streams={streams!} tracks={tracks} elapsedTime={elapsedTime} />
       ) : (
@@ -105,7 +105,7 @@ export function ActivityChart({
               )
             })}
           </div>
-          <p className="text-xs text-muted-foreground mt-1.5">Track timeline</p>
+          <p className="eyebrow mt-2 !text-[0.625rem]">Track timeline</p>
         </div>
       )}
     </div>

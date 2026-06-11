@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
+import { Activity, Music } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 interface ConnectButtonProps {
@@ -15,7 +16,11 @@ export function ConnectButton({ provider, connected }: ConnectButtonProps) {
   const router = useRouter()
 
   const label = provider === "strava" ? "Strava" : "Spotify"
-  const dotColor = provider === "strava" ? "bg-[#FC4C02]" : "bg-[#1DB954]"
+  const Icon = provider === "strava" ? Activity : Music
+  const chipColor =
+    provider === "strava"
+      ? "border-[#FC4C02]/25 bg-[#FC4C02]/10 text-[#FC4C02]"
+      : "border-[#1DB954]/25 bg-[#1DB954]/10 text-[#1DB954]"
   const btnColor =
     provider === "strava"
       ? "bg-[#FC4C02] hover:bg-[#e04402] text-white"
@@ -34,12 +39,25 @@ export function ConnectButton({ provider, connected }: ConnectButtonProps) {
     setLoading(false)
   }
 
+  const chip = (
+    <span
+      className={`inline-flex size-9 shrink-0 items-center justify-center rounded-lg border ${
+        connected ? chipColor : "border-border bg-muted/40 text-muted-foreground"
+      }`}
+    >
+      <Icon className="size-4" strokeWidth={2} />
+    </span>
+  )
+
   if (connected) {
     return (
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className={`w-2.5 h-2.5 rounded-full ${dotColor}`} />
-          <span className="text-sm">{label} connected</span>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          {chip}
+          <div className="min-w-0">
+            <p className="text-sm font-medium">{label}</p>
+            <p className="text-xs text-muted-foreground">Connected</p>
+          </div>
         </div>
         <Button
           variant="ghost"
@@ -55,14 +73,17 @@ export function ConnectButton({ provider, connected }: ConnectButtonProps) {
   }
 
   return (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-3">
-        <div className="w-2.5 h-2.5 rounded-full bg-muted" />
-        <span className="text-sm text-muted-foreground">{label} not connected</span>
+    <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center gap-3 min-w-0">
+        {chip}
+        <div className="min-w-0">
+          <p className="text-sm font-medium">{label}</p>
+          <p className="text-xs text-muted-foreground">Not connected</p>
+        </div>
       </div>
       <Button
         size="sm"
-        className={btnColor}
+        className={`${btnColor} font-medium`}
         onClick={() => {
           setLoading(true)
           window.location.href = `/api/${provider}/auth`
