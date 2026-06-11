@@ -45,3 +45,4 @@ next-env.d.ts
 
 # override root .gitignore lib/ rule for Next.js src/lib
 !src/lib/
+supabase/.temp/

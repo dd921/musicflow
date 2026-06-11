@@ -1,3 +1,4 @@
+const SPOTIFY_API_URL = "https://api.spotify.com/v1"
 const SPOTIFY_AUTH_URL = "https://accounts.spotify.com/authorize"
 const SPOTIFY_TOKEN_URL = "https://accounts.spotify.com/api/token"
 
@@ -45,6 +46,29 @@ export async function exchangeSpotifyCode(code: string) {
     expires_in: number
     scope: string
   }>
+}
+
+export type SpotifyRecentTrack = {
+  track: {
+    id: string
+    name: string
+    duration_ms: number
+    artists: { name: string }[]
+    album: {
+      name: string
+      images: { url: string; height: number }[]
+    }
+  }
+  played_at: string
+}
+
+export async function fetchRecentTracks(accessToken: string): Promise<SpotifyRecentTrack[]> {
+  const res = await fetch(`${SPOTIFY_API_URL}/me/player/recently-played?limit=50`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+  if (!res.ok) throw new Error(`Spotify recently-played fetch failed: ${res.status}`)
+  const data = await res.json() as { items: SpotifyRecentTrack[] }
+  return data.items
 }
 
 export async function refreshSpotifyToken(refreshToken: string) {

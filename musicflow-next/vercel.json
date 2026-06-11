@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/sync-spotify",
+      "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/cron/sync-strava",
+      "schedule": "0 * * * *"
+    }
+  ]
+}

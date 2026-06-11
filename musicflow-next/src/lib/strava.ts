@@ -1,3 +1,4 @@
+const STRAVA_API_URL = "https://www.strava.com/api/v3"
 const STRAVA_AUTH_URL = "https://www.strava.com/oauth/authorize"
 const STRAVA_TOKEN_URL = "https://www.strava.com/oauth/token"
 
@@ -29,6 +30,60 @@ export async function exchangeStravaCode(code: string) {
     refresh_token: string
     expires_at: number
   }>
+}
+
+export type StravaActivity = {
+  id: number
+  name: string
+  type: string
+  start_date: string
+  elapsed_time: number
+  moving_time: number
+  distance: number
+  average_heartrate?: number
+  max_heartrate?: number
+  average_speed: number
+  max_speed: number
+  total_elevation_gain: number
+  calories?: number
+}
+
+export async function fetchStravaActivities(
+  accessToken: string,
+  options: { after?: number; page?: number; perPage?: number } = {}
+): Promise<StravaActivity[]> {
+  const params = new URLSearchParams({
+    per_page: String(options.perPage ?? 50),
+    page: String(options.page ?? 1),
+  })
+  if (options.after) params.set("after", String(options.after))
+
+  const res = await fetch(`${STRAVA_API_URL}/athlete/activities?${params}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+  if (!res.ok) throw new Error(`Strava activities fetch failed: ${res.status}`)
+  return res.json() as Promise<StravaActivity[]>
+}
+
+export type StravaStreams = Partial<
+  Record<
+    "time" | "heartrate" | "velocity_smooth" | "altitude" | "cadence" | "watts",
+    { data: number[] }
+  >
+>
+
+export async function fetchActivityStreams(
+  accessToken: string,
+  stravaActivityId: bigint
+): Promise<StravaStreams> {
+  const keys = "time,heartrate,velocity_smooth,altitude,cadence,watts"
+  const res = await fetch(
+    `${STRAVA_API_URL}/activities/${stravaActivityId}/streams?keys=${keys}&key_by_type=true`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  )
+  if (res.status === 404) return {}
+  if (!res.ok) throw new Error(`Strava streams fetch failed: ${res.status}`)
+  return res.json() as Promise<StravaStreams>
 }
 
 export async function refreshStravaToken(refreshToken: string) {

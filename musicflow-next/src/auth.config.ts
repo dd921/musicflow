@@ -12,8 +12,11 @@ export const authConfig = {
       const isApiCallback =
         pathname.startsWith("/api/strava/") ||
         pathname.startsWith("/api/spotify/")
+      // /api/cron auths via CRON_SECRET header, not a session
+      const isPublicApi =
+        pathname === "/api/register" || pathname.startsWith("/api/cron/")
 
-      if (isApiAuth || isApiCallback) return true
+      if (isApiAuth || isApiCallback || isPublicApi) return true
       if (isLoggedIn && isAuthPage) return Response.redirect(new URL("/dashboard", nextUrl.origin))
       if (!isLoggedIn && !isAuthPage) return Response.redirect(new URL("/", nextUrl.origin))
       return true
