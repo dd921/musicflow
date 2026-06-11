@@ -4,6 +4,7 @@
 
 import dynamic from "next/dynamic"
 import type { StravaStreams } from "@/lib/strava"
+import { TRACK_COLORS, type TrackSegment } from "@/lib/track-segments"
 
 const ActivityPlot = dynamic(() => import("./activity-plot"), {
   ssr: false,
@@ -14,32 +15,6 @@ const ActivityPlot = dynamic(() => import("./activity-plot"), {
 
 // Plotly margins; the track band below must match so segments align with the plot area
 const PLOT_MARGIN = { l: 56, r: 16 }
-
-const TRACK_COLORS = [
-  "#FF6B35",
-  "#1DB954",
-  "#FF3366",
-  "#667eea",
-  "#f39c12",
-  "#2ecc71",
-  "#e74c3c",
-  "#9b59b6",
-  "#3498db",
-  "#1abc9c",
-  "#e67e22",
-  "#16a085",
-]
-
-export type TrackSegment = {
-  id: string
-  name: string
-  artists: string[]
-  album: string
-  albumArt: string | null
-  albumArtSmall: string | null
-  startSec: number
-  endSec: number
-}
 
 function formatOffset(seconds: number): string {
   const m = Math.floor(seconds / 60)
@@ -71,7 +46,7 @@ export function ActivityChart({
   return (
     <div className="glass rounded-xl p-4 sm:p-6 space-y-2">
       {hasStreams ? (
-        <ActivityPlot streams={streams!} />
+        <ActivityPlot streams={streams!} tracks={tracks} elapsedTime={elapsedTime} />
       ) : (
         <p className="text-sm text-muted-foreground">
           No stream data available for this activity.

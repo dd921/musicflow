@@ -2,8 +2,9 @@
 
 import * as Plotly from "plotly.js-basic-dist-min"
 import createPlotlyComponent from "react-plotly.js/factory"
-import type { Layout, PlotData } from "plotly.js"
+import type { Layout, PlotData, Shape } from "plotly.js"
 import type { StravaStreams } from "@/lib/strava"
+import { TRACK_COLORS, type TrackSegment } from "@/lib/track-segments"
 
 const Plot = createPlotlyComponent(Plotly)
 
@@ -43,7 +44,15 @@ const METRICS: Metric[] = [
   { key: "altitude", label: "Elevation (m)", color: "#3498db" },
 ]
 
-export default function ActivityPlot({ streams }: { streams: StravaStreams }) {
+export default function ActivityPlot({
+  streams,
+  tracks,
+  elapsedTime,
+}: {
+  streams: StravaStreams
+  tracks: TrackSegment[]
+  elapsedTime: number
+}) {
   const time = streams.time?.data
   if (!time || time.length === 0) return null
 
@@ -52,6 +61,22 @@ export default function ActivityPlot({ streams }: { streams: StravaStreams }) {
     (m) => m.key !== "time" && (streams[m.key]?.data?.length ?? 0) > 0
   )
   if (available.length === 0) return null
+
+  // Shade each subplot with the track playing at that moment, matching the
+  // band below the chart (same color order)
+  const shapes: Partial<Shape>[] = tracks.map((track, i) => ({
+    type: "rect",
+    xref: "x",
+    yref: "paper",
+    x0: track.startSec / 60,
+    x1: track.endSec / 60,
+    y0: 0,
+    y1: 1,
+    fillcolor: TRACK_COLORS[i % TRACK_COLORS.length],
+    opacity: 0.14,
+    line: { width: 0 },
+    layer: "below",
+  }))
 
   const gap = 0.08
   const slot = 1 / available.length
@@ -64,10 +89,12 @@ export default function ActivityPlot({ streams }: { streams: StravaStreams }) {
     height: 140 * available.length + 44,
     showlegend: false,
     hovermode: "x unified",
+    shapes,
     xaxis: {
       title: { text: "Time (min)" },
       gridcolor: GRID_COLOR,
       zeroline: false,
+      range: [0, elapsedTime / 60],
     },
   }
 

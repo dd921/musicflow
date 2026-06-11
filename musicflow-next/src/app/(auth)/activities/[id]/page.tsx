@@ -4,9 +4,13 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { getValidToken } from "@/lib/tokens"
 import { fetchActivityStreams, type StravaStreams } from "@/lib/strava"
-import { ActivityChart, type TrackSegment } from "./activity-chart"
-
-const MAX_TRACK_GAP_MS = 3 * 60 * 60 * 1000
+import {
+  computeTrackSegments,
+  trackQueryWindow,
+  type TrackSegment,
+} from "@/lib/track-segments"
+import { syncSpotifyIfStale } from "@/lib/sync-spotify"
+import { ActivityChart } from "./activity-chart"
 
 function formatDuration(seconds: number): string {
   const h = Math.floor(seconds / 3600)
@@ -76,37 +80,52 @@ export default async function ActivityDetailPage({
   const startMs = activity.startDate.getTime()
   const endMs = startMs + activity.elapsedTime * 1000
 
+  await syncSpotifyIfStale(userId)
+
   const [streams, candidateTracks] = await Promise.all([
     getStreams(activity),
     prisma.track.findMany({
-      where: {
-        userId,
-        playedAt: {
-          gte: new Date(startMs - MAX_TRACK_GAP_MS),
-          lte: new Date(endMs),
-        },
-      },
+      where: { userId, playedAt: trackQueryWindow(startMs, endMs) },
       orderBy: { playedAt: "asc" },
     }),
   ])
 
-  // playedAt marks the start of playback; keep tracks whose play window
-  // overlaps the activity window, clamped to it
-  const tracks: TrackSegment[] = candidateTracks
-    .filter((t) => t.playedAt.getTime() + t.durationMs > startMs)
-    .map((t) => ({
+  const tracks: TrackSegment[] = computeTrackSegments(
+    candidateTracks.map((t) => ({
       id: t.id,
       name: t.name,
       artists: JSON.parse(t.artists) as string[],
       album: t.album,
       albumArt: t.albumArt,
       albumArtSmall: t.albumArtSmall,
-      startSec: Math.max(0, (t.playedAt.getTime() - startMs) / 1000),
-      endSec: Math.min(
-        activity.elapsedTime,
-        (t.playedAt.getTime() + t.durationMs - startMs) / 1000
-      ),
-    }))
+      playedAt: t.playedAt,
+      durationMs: t.durationMs,
+    })),
+    startMs,
+    activity.elapsedTime
+  )
+
+  let noTracksReason: string | null = null
+  if (tracks.length === 0) {
+    const firstTrack = await prisma.track.findFirst({
+      where: { userId },
+      orderBy: { playedAt: "asc" },
+      select: { playedAt: true },
+    })
+    if (!firstTrack) {
+      noTracksReason =
+        "No Spotify listening history synced yet. Connect Spotify in Settings, then press Sync on the dashboard."
+    } else if (firstTrack.playedAt.getTime() > endMs) {
+      const since = new Intl.DateTimeFormat("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      }).format(firstTrack.playedAt)
+      noTracksReason = `This activity predates your Spotify history, which begins ${since}. Spotify only exposes recent plays, so older workouts can't be matched.`
+    } else {
+      noTracksReason = "No Spotify plays overlapped this workout."
+    }
+  }
 
   const verb = ACTIVITY_VERBS[activity.type] ?? "logged"
   const narrative =
@@ -183,6 +202,12 @@ export default async function ActivityDetailPage({
         tracks={tracks}
         elapsedTime={activity.elapsedTime}
       />
+
+      {noTracksReason && (
+        <div className="glass rounded-xl p-4">
+          <p className="text-sm text-muted-foreground">🎵 {noTracksReason}</p>
+        </div>
+      )}
 
       {tracks.length > 0 && (
         <div className="space-y-3">

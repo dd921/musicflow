@@ -2,6 +2,8 @@ import { prisma } from "@/lib/prisma"
 import { fetchRecentTracks } from "@/lib/spotify"
 import { getValidToken } from "@/lib/tokens"
 
+const SYNC_STALE_MS = 15 * 60 * 1000
+
 export type SyncResult = {
   inserted: number
   skipped: number
@@ -15,6 +17,12 @@ export async function syncSpotifyTracks(userId: string): Promise<SyncResult> {
   }
 
   const items = await fetchRecentTracks(accessToken)
+
+  await prisma.account.update({
+    where: { userId_provider: { userId, provider: "spotify" } },
+    data: { lastSyncedAt: new Date() },
+  })
+
   if (items.length === 0) return { inserted: 0, skipped: 0 }
 
   const records = items.map((item) => {
@@ -40,5 +48,24 @@ export async function syncSpotifyTracks(userId: string): Promise<SyncResult> {
   return {
     inserted: result.count,
     skipped: records.length - result.count,
+  }
+}
+
+export async function syncSpotifyIfStale(userId: string): Promise<void> {
+  const account = await prisma.account.findUnique({
+    where: { userId_provider: { userId, provider: "spotify" } },
+    select: { lastSyncedAt: true },
+  })
+  if (!account) return
+  if (
+    account.lastSyncedAt &&
+    Date.now() - account.lastSyncedAt.getTime() < SYNC_STALE_MS
+  ) {
+    return
+  }
+  try {
+    await syncSpotifyTracks(userId)
+  } catch {
+    // best effort — the page still renders with already-stored tracks
   }
 }
