@@ -2,6 +2,7 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { ConnectButton } from "@/components/connect-buttons"
 import { UnitToggle } from "@/components/unit-toggle"
+import { SpotifyImport } from "./spotify-import"
 import type { UnitSystem } from "@/lib/units"
 
 export default async function SettingsPage() {
@@ -65,6 +66,14 @@ export default async function SettingsPage() {
       <div
         className="card-surface rounded-2xl p-6 space-y-4 rise-in"
         style={{ animationDelay: "240ms" }}
+      >
+        <h3 className="text-lg font-semibold tracking-tight">Listening History</h3>
+        <SpotifyImport />
+      </div>
+
+      <div
+        className="card-surface rounded-2xl p-6 space-y-4 rise-in"
+        style={{ animationDelay: "320ms" }}
       >
         <h3 className="text-lg font-semibold tracking-tight">Profile</h3>
         <div className="space-y-2 text-sm">
