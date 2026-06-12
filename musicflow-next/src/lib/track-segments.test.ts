@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest"
 import {
   computeTrackSegments,
   trackQueryWindow,
+  untrackedSeconds,
   type TrackPlay,
+  type TrackSegment,
 } from "./track-segments"
 
 const T0 = Date.UTC(2026, 0, 1, 10, 0, 0)
@@ -90,6 +92,38 @@ describe("computeTrackSegments", () => {
     )
     expect(segments[0].name).toBe("X")
     expect(segments[0].artists).toEqual(["Y", "Z"])
+  })
+})
+
+describe("untrackedSeconds", () => {
+  function segment(startSec: number, endSec: number): TrackSegment {
+    return {
+      id: `${startSec}-${endSec}`,
+      name: "Song",
+      artists: ["Artist"],
+      album: "Album",
+      albumArt: null,
+      albumArtSmall: null,
+      startSec,
+      endSec,
+    }
+  }
+
+  it("returns full elapsed time when no segments", () => {
+    expect(untrackedSeconds([], ELAPSED)).toBe(ELAPSED)
+  })
+
+  it("returns zero when segments cover the whole activity", () => {
+    expect(untrackedSeconds([segment(0, 1000), segment(1000, 1800)], ELAPSED)).toBe(0)
+  })
+
+  it("returns the uncovered remainder for partial coverage", () => {
+    // two songs totalling 500s of a 1800s workout
+    expect(untrackedSeconds([segment(100, 400), segment(900, 1100)], ELAPSED)).toBe(1300)
+  })
+
+  it("never returns a negative value", () => {
+    expect(untrackedSeconds([segment(0, 2000)], ELAPSED)).toBe(0)
   })
 })
 

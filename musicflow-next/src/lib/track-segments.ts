@@ -46,6 +46,15 @@ export function trackQueryWindow(activityStartMs: number, activityEndMs: number)
   }
 }
 
+// Segments from computeTrackSegments never overlap, so a plain sum is exact
+export function untrackedSeconds(
+  segments: TrackSegment[],
+  elapsedSec: number
+): number {
+  const tracked = segments.reduce((sum, s) => sum + (s.endSec - s.startSec), 0)
+  return Math.max(0, elapsedSec - tracked)
+}
+
 // plays must be sorted by playedAt ascending
 export function computeTrackSegments(
   plays: TrackPlay[],

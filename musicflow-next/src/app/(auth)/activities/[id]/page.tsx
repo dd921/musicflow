@@ -8,6 +8,7 @@ import { fetchActivityStreams, type StravaStreams } from "@/lib/strava"
 import {
   computeTrackSegments,
   trackQueryWindow,
+  untrackedSeconds,
   TRACK_COLORS,
   type TrackSegment,
 } from "@/lib/track-segments"
@@ -152,6 +153,15 @@ export default async function ActivityDetailPage({
 
   const peak = peakHeartrateCallout(streams, tracks, activity.maxHeartrate)
 
+  // Spotify's recently-played history only logs music tracks (no podcasts) and
+  // skips anything played under ~30s, so partial coverage is expected. Flag it
+  // when a meaningful slice of the workout has no matched track.
+  const uncovered = untrackedSeconds(tracks, activity.elapsedTime)
+  const coverageNote =
+    tracks.length > 0 && uncovered >= 120
+      ? `About ${Math.round(uncovered / 60)} min of this workout isn't shown below. Spotify's history only records music plays longer than ~30 seconds, so podcasts and quick skips don't appear.`
+      : null
+
   const stats = [
     activity.distance > 0 && {
       label: "Distance",
@@ -261,7 +271,15 @@ export default async function ActivityDetailPage({
 
       {tracks.length > 0 && (
         <div className="space-y-3 rise-in" style={{ animationDelay: "240ms" }}>
-          <h3 className="text-lg font-semibold tracking-tight">Soundtrack</h3>
+          <div className="space-y-1.5">
+            <h3 className="text-lg font-semibold tracking-tight">Soundtrack</h3>
+            {coverageNote && (
+              <p className="inline-flex items-start gap-2 text-sm text-muted-foreground">
+                <Music className="size-4 text-accent shrink-0 mt-0.5" />
+                {coverageNote}
+              </p>
+            )}
+          </div>
           <div className="space-y-2">
             {tracks.map((track, i) => (
               <div
