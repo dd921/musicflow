@@ -29,6 +29,28 @@ function movingAverage(values: number[], window: number): number[] {
   })
 }
 
+function percentile(sorted: number[], p: number): number {
+  if (sorted.length === 0) return 0
+  const idx = (sorted.length - 1) * p
+  const lo = Math.floor(idx)
+  const hi = Math.ceil(idx)
+  return sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo)
+}
+
+// Crop the axis to the bulk of the data (ignoring dropout spikes) with a little
+// padding, so trends are visible instead of being flattened against a 0 floor.
+function croppedRange(values: (number | null)[]): [number, number] | undefined {
+  const valid = values
+    .filter((v): v is number => v != null && Number.isFinite(v))
+    .sort((a, b) => a - b)
+  if (valid.length < 2) return undefined
+  const lo = percentile(valid, 0.02)
+  const hi = percentile(valid, 0.98)
+  if (hi <= lo) return undefined
+  const pad = (hi - lo) * 0.1
+  return [lo - pad, hi + pad]
+}
+
 function getMetrics(units: UnitSystem): Metric[] {
   const paceMeters = units === "metric" ? 1000 : METERS_PER_MILE
   return [
@@ -128,12 +150,16 @@ export default function ActivityPlot({
 
     // Subplots stack top to bottom in metric order
     const domainTop = 1 - i * slot
+    const cropped = croppedRange(y)
+    const range = cropped && metric.reversed ? [cropped[1], cropped[0]] : cropped
     layout[i === 0 ? "yaxis" : (`yaxis${i + 1}` as "yaxis")] = {
       title: { text: metric.label, font: { size: 10 } },
       domain: [domainTop - slot + gap * slot, domainTop],
       gridcolor: GRID_COLOR,
       zeroline: false,
-      autorange: metric.reversed ? "reversed" : true,
+      ...(range
+        ? { range }
+        : { autorange: metric.reversed ? "reversed" : true }),
     }
   })
 
