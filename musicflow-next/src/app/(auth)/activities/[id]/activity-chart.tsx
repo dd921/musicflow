@@ -2,6 +2,7 @@
 
 /* eslint-disable @next/next/no-img-element */
 
+import { useState } from "react"
 import dynamic from "next/dynamic"
 import type { StravaStreams } from "@/lib/strava"
 import { TRACK_COLORS, type TrackSegment } from "@/lib/track-segments"
@@ -34,6 +35,7 @@ export function ActivityChart({
   elapsedTime: number
   units: UnitSystem
 }) {
+  const [zoomedRange, setZoomedRange] = useState<[number, number] | undefined>(undefined)
   const hasStreams = (streams?.time?.data?.length ?? 0) > 0
 
   if (!hasStreams && tracks.length === 0) {
@@ -49,12 +51,25 @@ export function ActivityChart({
   return (
     <div className="card-surface rounded-2xl p-4 sm:p-6 space-y-2">
       {hasStreams ? (
-        <ActivityPlot
-          streams={streams!}
-          tracks={tracks}
-          elapsedTime={elapsedTime}
-          units={units}
-        />
+        <>
+          {zoomedRange && (
+            <div className="flex justify-end">
+              <button
+                onClick={() => setZoomedRange(undefined)}
+                className="text-xs text-accent glass rounded-lg px-3 py-1 hover:opacity-80 transition-opacity"
+              >
+                Reset zoom
+              </button>
+            </div>
+          )}
+          <ActivityPlot
+            streams={streams!}
+            tracks={tracks}
+            elapsedTime={elapsedTime}
+            units={units}
+            xRange={zoomedRange}
+          />
+        </>
       ) : (
         <p className="text-sm text-muted-foreground">
           No stream data available for this activity.
@@ -72,6 +87,10 @@ export function ActivityChart({
             {tracks.map((track, i) => {
               const left = (track.startSec / elapsedTime) * 100
               const width = ((track.endSec - track.startSec) / elapsedTime) * 100
+              const isZoomed =
+                zoomedRange &&
+                zoomedRange[0] === track.startSec / 60 &&
+                zoomedRange[1] === track.endSec / 60
               return (
                 <div
                   key={track.id}
@@ -79,8 +98,19 @@ export function ActivityChart({
                   style={{ left: `${left}%`, width: `${width}%` }}
                 >
                   <div
-                    className="h-full w-full rounded-sm border border-black/40 flex items-center overflow-hidden"
-                    style={{ backgroundColor: TRACK_COLORS[i % TRACK_COLORS.length] }}
+                    className="h-full w-full rounded-sm border flex items-center overflow-hidden cursor-pointer transition-opacity"
+                    style={{
+                      backgroundColor: TRACK_COLORS[i % TRACK_COLORS.length],
+                      borderColor: isZoomed ? "rgba(255,255,255,0.7)" : "rgba(0,0,0,0.4)",
+                      opacity: zoomedRange && !isZoomed ? 0.5 : 1,
+                    }}
+                    onClick={() => {
+                      if (isZoomed) {
+                        setZoomedRange(undefined)
+                      } else {
+                        setZoomedRange([track.startSec / 60, track.endSec / 60])
+                      }
+                    }}
                   >
                     {track.albumArtSmall && (
                       <img
@@ -113,7 +143,12 @@ export function ActivityChart({
               )
             })}
           </div>
-          <p className="eyebrow mt-2 !text-[0.625rem]">Track timeline</p>
+          <p className="eyebrow mt-2 !text-[0.625rem]">
+            Track timeline
+            {hasStreams && (
+              <span className="ml-2 opacity-50">· click a track to zoom</span>
+            )}
+          </p>
         </div>
       )}
     </div>

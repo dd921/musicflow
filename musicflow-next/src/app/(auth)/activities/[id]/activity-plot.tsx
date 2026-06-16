@@ -6,6 +6,7 @@ import type { Layout, PlotData, Shape } from "plotly.js"
 import type { StravaStreams } from "@/lib/strava"
 import { TRACK_COLORS, type TrackSegment } from "@/lib/track-segments"
 import { METERS_PER_MILE, metersToFeet, type UnitSystem } from "@/lib/units"
+import { useActivityView } from "./activity-view-context"
 
 const Plot = createPlotlyComponent(Plotly)
 
@@ -81,12 +82,16 @@ export default function ActivityPlot({
   tracks,
   elapsedTime,
   units,
+  xRange,
 }: {
   streams: StravaStreams
   tracks: TrackSegment[]
   elapsedTime: number
   units: UnitSystem
+  xRange?: [number, number]
 }) {
+  const { setHoverSec } = useActivityView()
+
   const time = streams.time?.data
   if (!time || time.length === 0) return null
 
@@ -115,6 +120,7 @@ export default function ActivityPlot({
   const gap = 0.08
   const slot = 1 / available.length
   const traces: Partial<PlotData>[] = []
+  const activeRange: [number, number] = xRange ?? [0, elapsedTime / 60]
   const layout: Partial<Layout> = {
     paper_bgcolor: "rgba(0,0,0,0)",
     plot_bgcolor: "rgba(0,0,0,0)",
@@ -128,7 +134,7 @@ export default function ActivityPlot({
       title: { text: "Time (min)" },
       gridcolor: GRID_COLOR,
       zeroline: false,
-      range: [0, elapsedTime / 60],
+      range: activeRange,
     },
   }
 
@@ -171,6 +177,14 @@ export default function ActivityPlot({
       className="w-full"
       useResizeHandler
       style={{ width: "100%" }}
+      onHover={(event) => {
+        const point = event.points[0]
+        if (point?.x != null) {
+          // x axis is in minutes; convert to seconds for the shared context
+          setHoverSec((point.x as number) * 60)
+        }
+      }}
+      onUnhover={() => setHoverSec(null)}
     />
   )
 }

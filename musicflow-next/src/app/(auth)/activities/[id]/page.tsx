@@ -9,7 +9,6 @@ import {
   computeTrackSegments,
   trackQueryWindow,
   untrackedSeconds,
-  TRACK_COLORS,
   type TrackSegment,
 } from "@/lib/track-segments"
 import { syncSpotifyIfStale } from "@/lib/sync-spotify"
@@ -23,6 +22,13 @@ import { encodePolyline } from "@/lib/polyline"
 import { SportIcon } from "@/components/sport-icon"
 import { ActivityChart } from "./activity-chart"
 import { RouteMap } from "./route-map"
+import { ActivityViewProvider } from "./activity-view-context"
+import { Soundtrack } from "./soundtrack"
+import { HrZones } from "./hr-zones"
+import { Decoupling } from "./decoupling"
+import { Splits } from "./splits"
+import { TempoSync, type TempoTrack } from "./tempo-sync"
+import { ShareCard } from "./share-card"
 
 function formatDuration(seconds: number): string {
   const h = Math.floor(seconds / 3600)
@@ -119,6 +125,19 @@ export default async function ActivityDetailPage({
     startMs,
     activity.elapsedTime
   )
+
+  // Track segments drop the audio-features columns; re-join tempo by id for the
+  // Cadence × Tempo view.
+  const tempoById = new Map(candidateTracks.map((t) => [t.id, t.tempo]))
+  const tempoTracks: TempoTrack[] = tracks.map((t) => ({
+    id: t.id,
+    name: t.name,
+    artists: t.artists,
+    albumArtSmall: t.albumArtSmall,
+    startSec: t.startSec,
+    endSec: t.endSec,
+    tempo: tempoById.get(t.id) ?? null,
+  }))
 
   let noTracksReason: string | null = null
   if (tracks.length === 0) {
@@ -240,23 +259,66 @@ export default async function ActivityDetailPage({
         </div>
       </div>
 
-      {streams?.latlng && streams.latlng.data.length >= 2 && (
-        <div className="rise-in" style={{ animationDelay: "120ms" }}>
-          <RouteMap
-            latlng={streams.latlng.data}
-            time={streams.time?.data ?? []}
-            tracks={tracks}
-          />
-        </div>
-      )}
-
-      <div className="rise-in" style={{ animationDelay: "160ms" }}>
-        <ActivityChart
-          streams={streams}
-          tracks={tracks}
-          elapsedTime={activity.elapsedTime}
+      <div
+        className="flex justify-end rise-in"
+        style={{ animationDelay: "100ms" }}
+      >
+        <ShareCard
+          title={activity.name}
+          dateLabel={new Intl.DateTimeFormat("en-US", {
+            weekday: "long",
+            month: "long",
+            day: "numeric",
+            year: "numeric",
+          }).format(activity.startDate)}
+          sportType={activity.type}
+          stats={stats}
+          tracks={tracks.map((t) => ({
+            id: t.id,
+            name: t.name,
+            artists: t.artists,
+            albumArtSmall: t.albumArtSmall,
+          }))}
           units={units}
         />
+      </div>
+
+      <ActivityViewProvider>
+        {streams?.latlng && streams.latlng.data.length >= 2 && (
+          <div className="rise-in" style={{ animationDelay: "120ms" }}>
+            <RouteMap
+              latlng={streams.latlng.data}
+              time={streams.time?.data ?? []}
+              tracks={tracks}
+              velocity={streams.velocity_smooth?.data}
+            />
+          </div>
+        )}
+
+        <div className="rise-in mt-6" style={{ animationDelay: "160ms" }}>
+          <ActivityChart
+            streams={streams}
+            tracks={tracks}
+            elapsedTime={activity.elapsedTime}
+            units={units}
+          />
+        </div>
+      </ActivityViewProvider>
+
+      <div className="rise-in" style={{ animationDelay: "180ms" }}>
+        <TempoSync tracks={tempoTracks} streams={streams} />
+      </div>
+
+      <div
+        className="grid gap-6 sm:grid-cols-2 rise-in"
+        style={{ animationDelay: "200ms" }}
+      >
+        <HrZones streams={streams} maxHeartrate={activity.maxHeartrate} />
+        <Decoupling streams={streams} />
+      </div>
+
+      <div className="rise-in" style={{ animationDelay: "220ms" }}>
+        <Splits streams={streams} tracks={tracks} units={units} />
       </div>
 
       {noTracksReason && (
@@ -270,53 +332,13 @@ export default async function ActivityDetailPage({
       )}
 
       {tracks.length > 0 && (
-        <div className="space-y-3 rise-in" style={{ animationDelay: "240ms" }}>
-          <div className="space-y-1.5">
-            <h3 className="text-lg font-semibold tracking-tight">Soundtrack</h3>
-            {coverageNote && (
-              <p className="inline-flex items-start gap-2 text-sm text-muted-foreground">
-                <Music className="size-4 text-accent shrink-0 mt-0.5" />
-                {coverageNote}
-              </p>
-            )}
-          </div>
-          <div className="space-y-2">
-            {tracks.map((track, i) => (
-              <div
-                key={track.id}
-                className="card-surface rounded-2xl p-3 flex items-center gap-3 overflow-hidden relative"
-              >
-                <span
-                  className="absolute left-0 top-0 h-full w-1"
-                  style={{ backgroundColor: TRACK_COLORS[i % TRACK_COLORS.length] }}
-                />
-                <span className="font-mono text-xs text-muted-foreground w-6 text-center shrink-0">
-                  {String(i + 1).padStart(2, "0")}
-                </span>
-                {track.albumArtSmall ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={track.albumArtSmall}
-                    alt=""
-                    className="h-10 w-10 rounded-lg object-cover shrink-0"
-                  />
-                ) : (
-                  <span className="h-10 w-10 rounded-lg bg-white/5 flex items-center justify-center shrink-0">
-                    <Music className="size-4 text-muted-foreground" />
-                  </span>
-                )}
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium truncate">{track.name}</p>
-                  <p className="text-sm text-muted-foreground truncate">
-                    {track.artists.join(", ")} · {track.album}
-                  </p>
-                </div>
-                <p className="font-mono text-xs text-muted-foreground tabular-nums shrink-0">
-                  {formatDuration(Math.round(track.startSec))}
-                </p>
-              </div>
-            ))}
-          </div>
+        <div className="rise-in" style={{ animationDelay: "240ms" }}>
+          <Soundtrack
+            tracks={tracks}
+            streams={streams}
+            units={units}
+            coverageNote={coverageNote}
+          />
         </div>
       )}
     </div>
