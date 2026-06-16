@@ -284,25 +284,37 @@ export default async function ActivityDetailPage({
       </div>
 
       <ActivityViewProvider>
-        {streams?.latlng && streams.latlng.data.length >= 2 && (
-          <div className="rise-in" style={{ animationDelay: "120ms" }}>
-            <RouteMap
-              latlng={streams.latlng.data}
-              time={streams.time?.data ?? []}
+        {streams?.latlng && streams.latlng.data.length >= 2 ? (
+          <div
+            className="grid gap-6 lg:grid-cols-2 lg:items-start rise-in"
+            style={{ animationDelay: "120ms" }}
+          >
+            {/* Sticky so the hover marker stays visible while scrolling the chart */}
+            <div className="sticky top-2 z-20 self-start lg:top-6">
+              <RouteMap
+                latlng={streams.latlng.data}
+                time={streams.time?.data ?? []}
+                tracks={tracks}
+                velocity={streams.velocity_smooth?.data}
+              />
+            </div>
+            <ActivityChart
+              streams={streams}
               tracks={tracks}
-              velocity={streams.velocity_smooth?.data}
+              elapsedTime={activity.elapsedTime}
+              units={units}
+            />
+          </div>
+        ) : (
+          <div className="rise-in" style={{ animationDelay: "160ms" }}>
+            <ActivityChart
+              streams={streams}
+              tracks={tracks}
+              elapsedTime={activity.elapsedTime}
+              units={units}
             />
           </div>
         )}
-
-        <div className="rise-in mt-6" style={{ animationDelay: "160ms" }}>
-          <ActivityChart
-            streams={streams}
-            tracks={tracks}
-            elapsedTime={activity.elapsedTime}
-            units={units}
-          />
-        </div>
       </ActivityViewProvider>
 
       <div className="rise-in" style={{ animationDelay: "180ms" }}>
