@@ -1,10 +1,13 @@
 import Link from "next/link"
 import { revalidatePath } from "next/cache"
-import { ChevronRight, Footprints, RefreshCw } from "lucide-react"
+import { ChevronRight, CloudSun, Footprints, RefreshCw } from "lucide-react"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { syncStravaActivities } from "@/lib/sync-strava"
 import { formatDistance, type UnitSystem } from "@/lib/units"
+import { summarizeActivityComfort } from "@/lib/activities-comfort"
+import { enrichActivitiesWeather } from "@/lib/weather/enrich"
+import type { WeatherSample } from "@/lib/weather/types"
 import { SportIcon } from "@/components/sport-icon"
 import { RouteThumbnail } from "@/components/route-thumbnail"
 
@@ -54,7 +57,10 @@ export default async function ActivitiesPage() {
               : `${activities.length} most recent activities`}
           </p>
         </div>
-        <SyncButton />
+        <div className="flex items-center gap-2">
+          <EnrichButton />
+          <SyncButton />
+        </div>
       </div>
 
       {activities.length === 0 ? (
@@ -120,6 +126,19 @@ export default async function ActivitiesPage() {
                 />
               )}
 
+              {(() => {
+                const comfort = summarizeActivityComfort(
+                  (activity.weather as unknown as WeatherSample[] | null) ?? null
+                );
+                return comfort ? (
+                  <span className={`shrink-0 rounded-full px-2 py-1 text-[0.65rem] font-semibold text-white ${comfort.color}`}>
+                    {comfort.label}
+                  </span>
+                ) : (
+                  <span className="shrink-0 text-[0.65rem] text-muted-foreground/40">—</span>
+                );
+              })()}
+
               <ChevronRight className="size-4 text-muted-foreground/50 shrink-0" />
             </Link>
           ))}
@@ -127,6 +146,28 @@ export default async function ActivitiesPage() {
       )}
     </div>
   )
+}
+
+function EnrichButton() {
+  async function enrichAction() {
+    "use server";
+    const session = await auth();
+    if (!session?.user?.id) return;
+    await enrichActivitiesWeather(session.user.id);
+    revalidatePath("/activities");
+  }
+
+  return (
+    <form action={enrichAction}>
+      <button
+        type="submit"
+        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium card-surface card-hover"
+      >
+        <CloudSun className="size-3.5" />
+        Enrich weather
+      </button>
+    </form>
+  );
 }
 
 function SyncButton() {
