@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { ForecastDay } from "@/lib/weather/types";
 import type { GeocodeResult } from "@/lib/weather/geocode";
 import { selectBestWindow } from "@/lib/weather/forecast";
+import { DEW_POINT_BANDS } from "@/lib/weather/dewpoint-score";
 
 type SavedLocation = { id: string; name: string; lat: number; lng: number; timezone: string };
 
@@ -11,6 +12,32 @@ function fmtHour(h: number): string {
   const am = h < 12;
   const hr = h % 12 === 0 ? 12 : h % 12;
   return `${hr}${am ? "am" : "pm"}`;
+}
+
+function bandRange(i: number): string {
+  const lower = i === 0 ? null : DEW_POINT_BANDS[i - 1].maxF;
+  const upper = DEW_POINT_BANDS[i].maxF;
+  if (lower == null) return `< ${upper}°`;
+  if (!Number.isFinite(upper)) return `≥ ${lower}°`;
+  return `${lower}–${upper - 1}°`;
+}
+
+function DewPointLegend() {
+  return (
+    <div className="card-surface rounded-2xl p-3">
+      <p className="eyebrow mb-2">Dew point comfort</p>
+      <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+        {DEW_POINT_BANDS.map((b, i) => (
+          <span key={b.band} className="inline-flex items-center gap-1.5 text-xs">
+            <span className={`size-3 rounded ${b.color}`} />
+            <span className="text-muted-foreground">
+              {b.label} <span className="tabular-nums">({bandRange(i)})</span>
+            </span>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export function PlannerClient({
@@ -173,6 +200,8 @@ export function PlannerClient({
             </div>
           </div>
 
+          <DewPointLegend />
+
           {loading && <p className="text-muted-foreground">Loading forecast…</p>}
           {error && <p className="text-red-400">{error}</p>}
 
@@ -185,7 +214,7 @@ export function PlannerClient({
                   <h3 className="font-semibold">{day.date}</h3>
                   {best && (
                     <span className="text-sm text-primary">
-                      Best: {fmtHour(best.hour)} · {Math.round(best.dew_point_f)}°F dew · {best.comfort.label}
+                      Best: {fmtHour(best.hour)} · {Math.round(best.temp_f)}°F (feels {Math.round(best.feels_like_f)}°) · {Math.round(best.dew_point_f)}° dew · {best.comfort.label}
                     </span>
                   )}
                 </div>
@@ -195,7 +224,7 @@ export function PlannerClient({
                     .map((h) => (
                       <div
                         key={h.time}
-                        title={`${fmtHour(h.hour)} — dew ${Math.round(h.dew_point_f)}°F, ${h.comfort.label}: ${h.comfort.advice}`}
+                        title={`${fmtHour(h.hour)} — ${Math.round(h.temp_f)}°F, feels ${Math.round(h.feels_like_f)}°, dew ${Math.round(h.dew_point_f)}°, ${Math.round(h.humidity_pct)}% RH — ${h.comfort.label}: ${h.comfort.advice}`}
                         className={`flex h-12 w-12 flex-col items-center justify-center rounded-lg text-[10px] text-white ${h.comfort.color}`}
                       >
                         <span>{fmtHour(h.hour)}</span>

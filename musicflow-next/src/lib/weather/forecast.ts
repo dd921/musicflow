@@ -1,5 +1,5 @@
 import type { ForecastDay, ForecastHour } from "./types";
-import { scoreDewPoint } from "./dewpoint-score";
+import { scoreComfort } from "./dewpoint-score";
 
 const FORECAST_URL = "https://api.open-meteo.com/v1/forecast";
 
@@ -38,21 +38,25 @@ export function parseForecast(response: ForecastResponse): ForecastHour[] {
   const h = response.hourly;
   return h.time.map((t, i) => {
     const dew_point_f = celsiusToFahrenheit(h.dew_point_2m[i]);
+    const feels_like_f = celsiusToFahrenheit(h.apparent_temperature[i]);
     return {
       time: t,
       hour: parseInt(t.slice(11, 13), 10),
       dew_point_f,
       temp_f: celsiusToFahrenheit(h.temperature_2m[i]),
       humidity_pct: h.relative_humidity_2m[i],
-      feels_like_f: celsiusToFahrenheit(h.apparent_temperature[i]),
+      feels_like_f,
       precipitation_mm: h.precipitation[i],
       wind_speed_mph: kmhToMph(h.wind_speed_10m[i]),
-      comfort: scoreDewPoint(dew_point_f),
+      comfort: scoreComfort(dew_point_f, feels_like_f),
     };
   });
 }
 
-/** Lowest dew point within [startHour, endHour] inclusive, tie-broken by lower feels-like. */
+/**
+ * Best hour within [startHour, endHour] inclusive: lowest composite comfort band,
+ * tie-broken by lower feels-like, then lower dew point.
+ */
 export function selectBestWindow(
   hours: ForecastHour[],
   startHour: number,
@@ -61,9 +65,11 @@ export function selectBestWindow(
   const inWindow = hours.filter((h) => h.hour >= startHour && h.hour <= endHour);
   if (inWindow.length === 0) return null;
   return inWindow.reduce((best, h) => {
-    if (h.dew_point_f < best.dew_point_f) return h;
-    if (h.dew_point_f === best.dew_point_f && h.feels_like_f < best.feels_like_f) return h;
-    return best;
+    if (h.comfort.band !== best.comfort.band)
+      return h.comfort.band < best.comfort.band ? h : best;
+    if (h.feels_like_f !== best.feels_like_f)
+      return h.feels_like_f < best.feels_like_f ? h : best;
+    return h.dew_point_f < best.dew_point_f ? h : best;
   });
 }
 

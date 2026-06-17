@@ -19,6 +19,8 @@ import {
   type UnitSystem,
 } from "@/lib/units"
 import { encodePolyline } from "@/lib/polyline"
+import { summarizeActivityWeather } from "@/lib/activities-comfort"
+import type { WeatherSample } from "@/lib/weather/types"
 import { SportIcon } from "@/components/sport-icon"
 import { ActivityChart } from "./activity-chart"
 import { RouteMap } from "./route-map"
@@ -172,6 +174,10 @@ export default async function ActivityDetailPage({
 
   const peak = peakHeartrateCallout(streams, tracks, activity.maxHeartrate)
 
+  const weather = summarizeActivityWeather(
+    (activity.weather as unknown as WeatherSample[] | null) ?? null
+  )
+
   // Spotify's recently-played history only logs music tracks (no podcasts) and
   // skips anything played under ~30s, so partial coverage is expected. Flag it
   // when a meaningful slice of the workout has no matched track.
@@ -258,6 +264,55 @@ export default async function ActivityDetailPage({
           ))}
         </div>
       </div>
+
+      {weather && (
+        <div
+          className="card-surface rounded-2xl p-6 space-y-4 rise-in"
+          style={{ animationDelay: "90ms" }}
+        >
+          <div className="flex items-center justify-between gap-3">
+            <p className="eyebrow">Conditions</p>
+            <span
+              className={`rounded-full px-2.5 py-1 text-xs font-semibold text-white ${weather.comfort.color}`}
+            >
+              {weather.comfort.label}
+            </span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-5">
+            {[
+              weather.tempF != null && {
+                label: "Temp",
+                value: `${Math.round(weather.tempF)}°F`,
+              },
+              { label: "Feels Like", value: `${Math.round(weather.feelsLikeF)}°F` },
+              { label: "Dew Point", value: `${Math.round(weather.dewPointF)}°F` },
+              weather.humidityPct != null && {
+                label: "Humidity",
+                value: `${Math.round(weather.humidityPct)}%`,
+              },
+              weather.windMph != null && {
+                label: "Wind",
+                value: `${Math.round(weather.windMph)} mph`,
+              },
+              weather.precipMm != null &&
+                weather.precipMm > 0 && {
+                  label: "Precip",
+                  value: `${weather.precipMm.toFixed(1)} mm`,
+                },
+            ]
+              .filter((s): s is { label: string; value: string } => Boolean(s))
+              .map((stat) => (
+                <div key={stat.label}>
+                  <p className="text-xl font-semibold tabular-nums tracking-tight">
+                    {stat.value}
+                  </p>
+                  <p className="eyebrow mt-0.5 !text-[0.625rem]">{stat.label}</p>
+                </div>
+              ))}
+          </div>
+          <p className="text-sm text-muted-foreground">{weather.comfort.advice}</p>
+        </div>
+      )}
 
       <div
         className="flex justify-end rise-in"

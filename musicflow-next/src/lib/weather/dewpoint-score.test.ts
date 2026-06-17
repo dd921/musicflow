@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { scoreDewPoint } from "@/lib/weather/dewpoint-score";
+import { scoreDewPoint, scoreComfort } from "@/lib/weather/dewpoint-score";
 
 describe("scoreDewPoint", () => {
   it("rates low dew points as ideal", () => {
@@ -26,5 +26,28 @@ describe("scoreDewPoint", () => {
     expect(c.label).toBe("Dangerous");
     expect(c.color).toContain("bg-");
     expect(c.advice.length).toBeGreaterThan(0);
+  });
+});
+
+describe("scoreComfort", () => {
+  it("leaves mild apparent temps governed by dew point", () => {
+    expect(scoreComfort(72, 75).band).toBe(scoreDewPoint(72).band);
+  });
+
+  it("keeps a hot but dry day far better than a warm humid one", () => {
+    const hotDry = scoreComfort(50, 88); // dew band 1 + 1 heat bump = 2
+    const warmHumid = scoreComfort(72, 82); // dew band 5, no bump
+    expect(hotDry.band).toBe(2);
+    expect(warmHumid.band).toBe(5);
+    expect(hotDry.band).toBeLessThan(warmHumid.band);
+  });
+
+  it("bumps two bands when the apparent temperature is extreme, clamped at 6", () => {
+    expect(scoreComfort(50, 96).band).toBe(3); // 1 + 2
+    expect(scoreComfort(76, 110).band).toBe(6); // 6 + 2 clamped
+  });
+
+  it("never improves a humid day just because it is cold", () => {
+    expect(scoreComfort(72, 40).band).toBe(scoreDewPoint(72).band);
   });
 });

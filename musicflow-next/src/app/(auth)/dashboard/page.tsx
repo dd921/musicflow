@@ -7,6 +7,8 @@ import { syncSpotifyTracks } from "@/lib/sync-spotify"
 import { syncStravaActivities } from "@/lib/sync-strava"
 import { SportIcon } from "@/components/sport-icon"
 import { RouteThumbnail } from "@/components/route-thumbnail"
+import { summarizeActivityComfort } from "@/lib/activities-comfort"
+import type { WeatherSample } from "@/lib/weather/types"
 
 export default async function DashboardPage() {
   const session = await auth()
@@ -157,6 +159,18 @@ export default async function DashboardPage() {
                     className="size-10 text-primary/80 shrink-0 hidden sm:block"
                   />
                 )}
+                {(() => {
+                  const comfort = summarizeActivityComfort(
+                    (a.weather as unknown as WeatherSample[] | null) ?? null
+                  )
+                  return comfort ? (
+                    <span
+                      className={`shrink-0 rounded-full px-2 py-1 text-[0.65rem] font-semibold text-white ${comfort.color}`}
+                    >
+                      {comfort.label}
+                    </span>
+                  ) : null
+                })()}
                 <ChevronRight className="size-4 text-muted-foreground/50 shrink-0" />
               </Link>
             ))}
