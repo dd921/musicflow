@@ -6,6 +6,7 @@ import { signOut } from "next-auth/react"
 import {
   Activity,
   BarChart3,
+  CloudSun,
   LayoutDashboard,
   LogOut,
   Music,
@@ -17,6 +18,7 @@ import { Button } from "@/components/ui/button"
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/activities", label: "Activities", icon: Activity },
+  { href: "/planner", label: "Planner", icon: CloudSun },
   { href: "/settings", label: "Settings", icon: Settings },
 ]
 
