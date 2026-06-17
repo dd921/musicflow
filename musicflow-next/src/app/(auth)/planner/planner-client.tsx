@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { ForecastDay } from "@/lib/weather/types";
 import type { GeocodeResult } from "@/lib/weather/geocode";
+import { selectBestWindow } from "@/lib/weather/forecast";
 
 type SavedLocation = { id: string; name: string; lat: number; lng: number; timezone: string };
 
@@ -69,6 +70,10 @@ export function PlannerClient({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: search.trim() }),
     });
+    if (!res.ok) {
+      setCandidates([]);
+      return;
+    }
     const data = await res.json();
     setCandidates(data.candidates ?? []);
   }
@@ -172,13 +177,15 @@ export function PlannerClient({
           {error && <p className="text-red-400">{error}</p>}
 
           <div className="space-y-5">
-            {days.map((day) => (
+            {days.map((day) => {
+              const best = selectBestWindow(day.hours, startHour, endHour);
+              return (
               <div key={day.date}>
                 <div className="mb-1 flex items-baseline justify-between">
                   <h3 className="font-semibold">{day.date}</h3>
-                  {day.bestWindow && (
+                  {best && (
                     <span className="text-sm text-primary">
-                      Best: {fmtHour(day.bestWindow.hour)} · {Math.round(day.bestWindow.dew_point_f)}°F dew · {day.bestWindow.comfort.label}
+                      Best: {fmtHour(best.hour)} · {Math.round(best.dew_point_f)}°F dew · {best.comfort.label}
                     </span>
                   )}
                 </div>
@@ -197,7 +204,8 @@ export function PlannerClient({
                     ))}
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </>
       )}

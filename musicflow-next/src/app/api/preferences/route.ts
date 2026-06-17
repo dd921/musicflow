@@ -11,6 +11,14 @@ export async function PUT(request: NextRequest) {
   if (typeof body.run_start_hour === "number") data.runStartHour = Math.min(23, Math.max(0, body.run_start_hour));
   if (typeof body.run_end_hour === "number") data.runEndHour = Math.min(23, Math.max(0, body.run_end_hour));
 
+  if (
+    typeof data.runStartHour === "number" &&
+    typeof data.runEndHour === "number" &&
+    data.runStartHour > data.runEndHour
+  ) {
+    [data.runStartHour, data.runEndHour] = [data.runEndHour, data.runStartHour];
+  }
+
   const user = await prisma.user.update({
     where: { id: session.user.id },
     data,
