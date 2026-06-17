@@ -54,3 +54,7 @@ instance/
 .cache
 .cache/
 
+# tooling cruft
+.agents/
+.claude-flow/
+
