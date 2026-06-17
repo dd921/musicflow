@@ -14,25 +14,20 @@ function fmtHour(h: number): string {
   return `${hr}${am ? "am" : "pm"}`;
 }
 
-function bandRange(i: number): string {
-  const lower = i === 0 ? null : DEW_POINT_BANDS[i - 1].maxF;
-  const upper = DEW_POINT_BANDS[i].maxF;
-  if (lower == null) return `< ${upper}°`;
-  if (!Number.isFinite(upper)) return `≥ ${lower}°`;
-  return `${lower}–${upper - 1}°`;
-}
-
-function DewPointLegend() {
+function ComfortLegend() {
   return (
     <div className="card-surface rounded-2xl p-3">
-      <p className="eyebrow mb-2">Dew point comfort</p>
+      <div className="mb-2 flex flex-wrap items-baseline gap-x-2">
+        <p className="eyebrow">Run comfort</p>
+        <p className="text-[0.7rem] text-muted-foreground/70">
+          dew point sets the band; a hot “feels like” bumps it warmer
+        </p>
+      </div>
       <div className="flex flex-wrap gap-x-4 gap-y-1.5">
-        {DEW_POINT_BANDS.map((b, i) => (
+        {DEW_POINT_BANDS.map((b) => (
           <span key={b.band} className="inline-flex items-center gap-1.5 text-xs">
             <span className={`size-3 rounded ${b.color}`} />
-            <span className="text-muted-foreground">
-              {b.label} <span className="tabular-nums">({bandRange(i)})</span>
-            </span>
+            <span className="text-muted-foreground">{b.label}</span>
           </span>
         ))}
       </div>
@@ -200,7 +195,7 @@ export function PlannerClient({
             </div>
           </div>
 
-          <DewPointLegend />
+          <ComfortLegend />
 
           {loading && <p className="text-muted-foreground">Loading forecast…</p>}
           {error && <p className="text-red-400">{error}</p>}
@@ -225,10 +220,13 @@ export function PlannerClient({
                       <div
                         key={h.time}
                         title={`${fmtHour(h.hour)} — ${Math.round(h.temp_f)}°F, feels ${Math.round(h.feels_like_f)}°, dew ${Math.round(h.dew_point_f)}°, ${Math.round(h.humidity_pct)}% RH — ${h.comfort.label}: ${h.comfort.advice}`}
-                        className={`flex h-12 w-12 flex-col items-center justify-center rounded-lg text-[10px] text-white ${h.comfort.color}`}
+                        className={`flex h-14 w-14 flex-col items-center justify-center rounded-lg text-white ${h.comfort.color}`}
                       >
-                        <span>{fmtHour(h.hour)}</span>
-                        <span>{Math.round(h.dew_point_f)}°</span>
+                        <span className="text-[9px] opacity-80">{fmtHour(h.hour)}</span>
+                        <span className="text-[13px] font-semibold leading-none">
+                          {Math.round(h.feels_like_f)}°
+                        </span>
+                        <span className="text-[9px] opacity-80">dew {Math.round(h.dew_point_f)}°</span>
                       </div>
                     ))}
                 </div>
