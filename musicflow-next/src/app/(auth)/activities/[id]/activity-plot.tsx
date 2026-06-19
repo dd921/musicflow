@@ -23,10 +23,17 @@ type Metric = {
   reversed?: boolean
 }
 
+// Centered moving average so smoothing doesn't lag the signal. A window of 1 (or
+// less) is a no-op, leaving the raw stream untouched.
 function movingAverage(values: number[], window: number): number[] {
+  if (window <= 1) return values
+  const half = Math.floor(window / 2)
   return values.map((_, i) => {
-    const slice = values.slice(Math.max(0, i - window + 1), i + 1)
-    return slice.reduce((sum, v) => sum + v, 0) / slice.length
+    const start = Math.max(0, i - half)
+    const end = Math.min(values.length, i + half + 1)
+    let sum = 0
+    for (let j = start; j < end; j++) sum += values[j]
+    return sum / (end - start)
   })
 }
 
@@ -62,7 +69,7 @@ function getMetrics(units: UnitSystem): Metric[] {
       color: "#1DB954",
       // Pace blows up at near-zero speeds; blank those points instead
       transform: (values) =>
-        movingAverage(values, 5).map((v) => (v > 0.5 ? paceMeters / v / 60 : null)),
+        values.map((v) => (v > 0.5 ? paceMeters / v / 60 : null)),
       reversed: true,
     },
     { key: "cadence", label: "Cadence", color: "#667eea" },
@@ -83,12 +90,14 @@ export default function ActivityPlot({
   elapsedTime,
   units,
   xRange,
+  smoothingSec = 0,
 }: {
   streams: StravaStreams
   tracks: TrackSegment[]
   elapsedTime: number
   units: UnitSystem
   xRange?: [number, number]
+  smoothingSec?: number
 }) {
   const { setHoverSec } = useActivityView()
 
@@ -96,6 +105,14 @@ export default function ActivityPlot({
   if (!time || time.length === 0) return null
 
   const minutes = time.map((t) => t / 60)
+
+  // Streams aren't always 1 Hz, so convert the requested smoothing window from
+  // seconds into samples using the actual average spacing of the time stream.
+  const sampleSec =
+    time.length > 1 && time[time.length - 1] > time[0]
+      ? (time[time.length - 1] - time[0]) / (time.length - 1)
+      : 1
+  const smoothingWindow = Math.max(1, Math.round(smoothingSec / sampleSec))
   const available = getMetrics(units).filter(
     (m) => m.key !== "time" && (streams[m.key]?.data?.length ?? 0) > 0
   )
@@ -139,7 +156,7 @@ export default function ActivityPlot({
   }
 
   available.forEach((metric, i) => {
-    const raw = streams[metric.key]!.data
+    const raw = movingAverage(streams[metric.key]!.data, smoothingWindow)
     const y = metric.transform ? metric.transform(raw) : raw
     const axisId = i === 0 ? "y" : `y${i + 1}`
 

@@ -36,6 +36,7 @@ export function ActivityChart({
   units: UnitSystem
 }) {
   const [zoomedRange, setZoomedRange] = useState<[number, number] | undefined>(undefined)
+  const [smoothingSec, setSmoothingSec] = useState(15)
   const hasStreams = (streams?.time?.data?.length ?? 0) > 0
 
   if (!hasStreams && tracks.length === 0) {
@@ -52,22 +53,39 @@ export function ActivityChart({
     <div className="card-surface rounded-2xl p-4 sm:p-6 space-y-2">
       {hasStreams ? (
         <>
-          {zoomedRange && (
-            <div className="flex justify-end">
+          <div className="flex items-center justify-between gap-4">
+            <label className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span className="whitespace-nowrap">Smoothing</span>
+              <input
+                type="range"
+                min={0}
+                max={60}
+                step={5}
+                value={smoothingSec}
+                onChange={(e) => setSmoothingSec(Number(e.target.value))}
+                className="w-28 accent-accent"
+                aria-label="Chart smoothing window in seconds"
+              />
+              <span className="tabular-nums w-9 text-right">
+                {smoothingSec === 0 ? "Off" : `${smoothingSec}s`}
+              </span>
+            </label>
+            {zoomedRange && (
               <button
                 onClick={() => setZoomedRange(undefined)}
                 className="text-xs text-accent glass rounded-lg px-3 py-1 hover:opacity-80 transition-opacity"
               >
                 Reset zoom
               </button>
-            </div>
-          )}
+            )}
+          </div>
           <ActivityPlot
             streams={streams!}
             tracks={tracks}
             elapsedTime={elapsedTime}
             units={units}
             xRange={zoomedRange}
+            smoothingSec={smoothingSec}
           />
         </>
       ) : (
