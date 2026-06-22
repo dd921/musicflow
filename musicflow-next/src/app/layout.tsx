@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import { Outfit, Space_Mono } from "next/font/google"
 import { Providers } from "@/components/providers"
+import { Toaster } from "sonner"
 import "./globals.css"
 
 const outfit = Outfit({
@@ -30,6 +31,7 @@ export default function RootLayout({
         className={`${outfit.variable} ${spaceMono.variable} font-sans min-h-screen bg-background text-foreground antialiased`}
       >
         <Providers>{children}</Providers>
+        <Toaster theme="dark" richColors />
       </body>
     </html>
   )
