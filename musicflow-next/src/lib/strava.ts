@@ -7,8 +7,8 @@ export function getStravaAuthUrl(): string {
     client_id: process.env.STRAVA_CLIENT_ID!,
     response_type: "code",
     redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/strava/callback`,
-    scope: "activity:read_all",
-    approval_prompt: "auto",
+    scope: "activity:read_all,activity:write",
+    approval_prompt: "force",
   })
   return `${STRAVA_AUTH_URL}?${params}`
 }

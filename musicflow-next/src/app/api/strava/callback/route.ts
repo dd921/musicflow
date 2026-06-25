@@ -14,6 +14,9 @@ export async function GET(request: Request) {
   const url = new URL(request.url)
   const code = url.searchParams.get("code")
   const error = url.searchParams.get("error")
+  // Strava returns the scopes the user actually granted as a comma-separated
+  // `scope` param on the callback — store that, not an assumed value.
+  const scope = url.searchParams.get("scope") ?? "activity:read_all"
 
   if (error || !code) {
     return NextResponse.redirect(new URL("/settings?error=strava_denied", appUrl))
@@ -27,7 +30,7 @@ export async function GET(request: Request) {
       accessToken: tokens.access_token,
       refreshToken: tokens.refresh_token,
       expiresAt: tokens.expires_at,
-      scope: "activity:read_all",
+      scope,
     },
     create: {
       userId: session.user.id,
@@ -35,7 +38,7 @@ export async function GET(request: Request) {
       accessToken: tokens.access_token,
       refreshToken: tokens.refresh_token,
       expiresAt: tokens.expires_at,
-      scope: "activity:read_all",
+      scope,
     },
   })
 
